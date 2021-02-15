@@ -12,10 +12,15 @@ defmodule ExLox.Expr do
           | Expr.Variable.t()
 
   defmodule Assign do
-    @type t :: %__MODULE__{name: String.t(), value: Expr.t(), line: non_neg_integer()}
+    @type t :: %__MODULE__{
+            name: String.t(),
+            value: Expr.t(),
+            line: non_neg_integer(),
+            distance: nil | integer()
+          }
 
     @enforce_keys [:name, :value, :line]
-    defstruct [:name, :value, :line]
+    defstruct [:name, :value, :line, :distance]
   end
 
   defmodule Binary do
@@ -70,9 +75,9 @@ defmodule ExLox.Expr do
   end
 
   defmodule Variable do
-    @type t :: %__MODULE__{name: String.t(), line: non_neg_integer()}
+    @type t :: %__MODULE__{name: String.t(), line: non_neg_integer(), distance: nil | integer()}
 
     @enforce_keys [:name, :line]
-    defstruct [:name, :line]
+    defstruct [:name, :line, :distance]
   end
 end

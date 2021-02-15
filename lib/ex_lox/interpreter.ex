@@ -129,10 +129,17 @@ defmodule ExLox.Interpreter do
   @spec evaluate(Expr.t(), t()) :: {any(), t()}
   defp evaluate(expr, interpreter) do
     case expr do
-      %Assign{name: name, value: value, line: line} ->
+      %Assign{name: name, value: value, line: line, distance: distance} ->
         {value, interpreter} = evaluate(value, interpreter)
 
-        case Environment.assign(interpreter.env, name, value) do
+        result =
+          if distance do
+            Environment.assign_at(interpreter.env, distance, name, value)
+          else
+            Environment.assign(interpreter.globals, name, value)
+          end
+
+        case result do
           :ok ->
             {value, interpreter}
 
@@ -247,8 +254,15 @@ defmodule ExLox.Interpreter do
         {expr, interpreter} = evaluate(right, interpreter)
         {-expr, interpreter}
 
-      %Variable{name: name, line: line} ->
-        case Environment.get(interpreter.env, name) do
+      %Variable{name: name, line: line, distance: distance} ->
+        result =
+          if distance do
+            Environment.get_at(interpreter.env, distance, name)
+          else
+            Environment.get(interpreter.globals, name)
+          end
+
+        case result do
           {:ok, val} ->
             {val, interpreter}
 

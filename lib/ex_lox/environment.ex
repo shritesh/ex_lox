@@ -53,6 +53,15 @@ defmodule ExLox.Environment do
     end
   end
 
+  @spec get_at(t(), integer(), String.t()) :: {:ok, any()} | :error
+  def get_at(env, distance, name) do
+    if distance == 0 do
+      get(env, name)
+    else
+      get_at(env.enclosing, distance - 1, name)
+    end
+  end
+
   @spec assign(t(), String.t(), any()) :: :ok | :error
   def assign(env, name, value) do
     table = get_table(env.ref)
@@ -67,6 +76,15 @@ defmodule ExLox.Environment do
       else
         :error
       end
+    end
+  end
+
+  @spec assign_at(t(), integer(), String.t(), any()) :: :ok | :error
+  def assign_at(env, distance, name, value) do
+    if distance == 0 do
+      assign(env, name, value)
+    else
+      assign_at(env.enclosing, distance - 1, name, value)
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule ExLox do
-  alias ExLox.{Interpreter, Parser, Scanner}
+  alias ExLox.{Interpreter, Parser, Resolver, Scanner}
 
   @type error :: {non_neg_integer() | :eof, String.t()}
 
@@ -23,6 +23,7 @@ defmodule ExLox do
   defp run(interpreter, source) do
     with {:ok, tokens} <- Scanner.scan(source),
          {:ok, statements} <- Parser.parse(tokens),
+         {:ok, statements} <- Resolver.resolve(statements),
          {:ok, interpreter} <- Interpreter.interpret(interpreter, statements) do
       interpreter
     else
