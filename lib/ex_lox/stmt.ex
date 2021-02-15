@@ -5,6 +5,7 @@ defmodule ExLox.Stmt do
   @type t ::
           Stmt.Block.t()
           | Stmt.Expression.t()
+          | Stmt.If.t()
           | Stmt.Print.t()
           | Stmt.Var.t()
 
@@ -20,6 +21,17 @@ defmodule ExLox.Stmt do
 
     @enforce_keys [:expression]
     defstruct [:expression]
+  end
+
+  defmodule If do
+    @type t :: %__MODULE__{
+            condition: Expr.t(),
+            then_branch: Stmt.t(),
+            else_branch: Stmt.t() | nil
+          }
+
+    @enforce_keys [:condition, :then_branch]
+    defstruct [:condition, :then_branch, :else_branch]
   end
 
   defmodule Print do

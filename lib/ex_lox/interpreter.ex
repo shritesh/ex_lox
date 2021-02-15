@@ -2,7 +2,7 @@ defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Stmt}
   alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, Print, Var}
+  alias ExLox.Stmt.{Block, Expression, If, Print, Var}
 
   @type t :: %Interpreter{env: Environment.t()}
   @enforce_keys [:env]
@@ -42,6 +42,15 @@ defmodule ExLox.Interpreter do
       %Expression{expression: expression} ->
         {_, interpreter} = evaluate(expression, interpreter)
         interpreter
+
+      %If{condition: condition, then_branch: then_branch, else_branch: else_branch} ->
+        {condition, interpreter} = evaluate(condition, interpreter)
+
+        cond do
+          truthy?(condition) -> execute(then_branch, interpreter)
+          else_branch -> execute(else_branch, interpreter)
+          true -> interpreter
+        end
 
       %Print{expression: expression} ->
         {value, interpreter} = evaluate(expression, interpreter)
