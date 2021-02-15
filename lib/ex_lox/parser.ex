@@ -1,6 +1,6 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Expression, If, Print, Var}
 
   defmodule ParserException do
@@ -149,7 +149,7 @@ defmodule ExLox.Parser do
   end
 
   defp assignment(tokens) do
-    {expr, rest} = equality(tokens)
+    {expr, rest} = or_(tokens)
 
     {expr, rest} =
       case rest do
@@ -170,6 +170,40 @@ defmodule ExLox.Parser do
       end
 
     {expr, rest}
+  end
+
+  defp or_(tokens) do
+    {expr, rest} = and_(tokens)
+    or_inner(expr, rest)
+  end
+
+  defp or_inner(expr, tokens) do
+    case tokens do
+      [%Token{type: :or} | rest] ->
+        {right, rest} = and_(rest)
+        expr = %Logical{left: expr, operator: :or, right: right}
+        or_inner(expr, rest)
+
+      _ ->
+        {expr, tokens}
+    end
+  end
+
+  defp and_(tokens) do
+    {expr, rest} = equality(tokens)
+    and_inner(expr, rest)
+  end
+
+  defp and_inner(expr, tokens) do
+    case tokens do
+      [%Token{type: :and} | rest] ->
+        {right, rest} = equality(rest)
+        expr = %Logical{left: expr, operator: :and, right: right}
+        and_inner(expr, rest)
+
+      _ ->
+        {expr, tokens}
+    end
   end
 
   defp equality(tokens) do

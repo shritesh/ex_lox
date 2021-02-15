@@ -1,7 +1,7 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Stmt}
-  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Expression, If, Print, Var}
 
   @type t :: %Interpreter{env: Environment.t()}
@@ -151,6 +151,15 @@ defmodule ExLox.Interpreter do
 
       %Literal{value: value} ->
         {value, interpreter}
+
+      %Logical{left: left, operator: operator, right: right} ->
+        {left, interpreter} = evaluate(left, interpreter)
+
+        case {operator, truthy?(left)} do
+          {:or, true} -> {left, interpreter}
+          {:and, false} -> {left, interpreter}
+          {_, _} -> evaluate(right, interpreter)
+        end
 
       %Unary{operator: :not, right: right} ->
         {expr, interpreter} = evaluate(right, interpreter)

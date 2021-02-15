@@ -6,6 +6,7 @@ defmodule ExLox.Expr do
           | Expr.Binary.t()
           | Expr.Grouping.t()
           | Expr.Literal.t()
+          | Expr.Logical.t()
           | Expr.Unary.t()
           | Expr.Variable.t()
 
@@ -41,6 +42,14 @@ defmodule ExLox.Expr do
 
     @enforce_keys [:value]
     defstruct [:value]
+  end
+
+  defmodule Logical do
+    @type logical_op :: :or | :and
+    @type t :: %__MODULE__{left: Expr.t(), operator: logical_op(), right: Expr.t()}
+
+    @enforce_keys [:left, :operator, :right]
+    defstruct [:left, :operator, :right]
   end
 
   defmodule Unary do
