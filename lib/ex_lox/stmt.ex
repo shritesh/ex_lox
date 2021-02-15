@@ -3,9 +3,17 @@ defmodule ExLox.Stmt do
   alias ExLox.Expr
 
   @type t ::
-          Stmt.Expression.t()
+          Stmt.Block.t()
+          | Stmt.Expression.t()
           | Stmt.Print.t()
           | Stmt.Var.t()
+
+  defmodule Block do
+    @type t :: %__MODULE__{statements: list(Stmt.t())}
+
+    @enforce_keys [:statements]
+    defstruct [:statements]
+  end
 
   defmodule Expression do
     @type t :: %__MODULE__{expression: Expr.t()}

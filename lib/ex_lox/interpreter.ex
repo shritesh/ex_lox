@@ -2,7 +2,7 @@ defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Stmt}
   alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
-  alias ExLox.Stmt.{Expression, Print, Var}
+  alias ExLox.Stmt.{Block, Expression, Print, Var}
 
   @type t :: %Interpreter{env: Environment.t()}
   @enforce_keys [:env]
@@ -35,6 +35,10 @@ defmodule ExLox.Interpreter do
   @spec execute(Stmt.t(), t()) :: t()
   defp execute(stmt, interpreter) do
     case stmt do
+      %Block{statements: statements} ->
+        execute_block(statements, Environment.from(interpreter.env), interpreter)
+        interpreter
+
       %Expression{expression: expression} ->
         {_, interpreter} = evaluate(expression, interpreter)
         interpreter
@@ -57,6 +61,12 @@ defmodule ExLox.Interpreter do
         Environment.define(interpreter.env, name, value)
         interpreter
     end
+  end
+
+  @spec execute_block(list(Stmt.t()), Environment.t(), t()) :: t()
+  defp execute_block(statements, env, interpreter) do
+    interpreter = %{interpreter | env: env}
+    Enum.reduce(statements, interpreter, &execute/2)
   end
 
   @spec evaluate(Expr.t(), t()) :: {any(), t()}

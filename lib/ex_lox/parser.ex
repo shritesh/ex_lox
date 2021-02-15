@@ -1,7 +1,7 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
   alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
-  alias ExLox.Stmt.{Expression, Print, Var}
+  alias ExLox.Stmt.{Block, Expression, Print, Var}
 
   defmodule ParserException do
     defexception [:message, :tokens]
@@ -78,6 +78,11 @@ defmodule ExLox.Parser do
       [%Token{type: :print} | rest] ->
         print_statement(rest)
 
+      [%Token{type: :left_brace} | rest] ->
+        {statements, rest} = block(rest, [])
+        stmt = %Block{statements: statements}
+        {stmt, rest}
+
       _ ->
         expression_statement(tokens)
     end
@@ -89,6 +94,23 @@ defmodule ExLox.Parser do
 
     stmt = %Print{expression: value}
     {stmt, rest}
+  end
+
+  defp block(tokens, statements) do
+    case tokens do
+      [] ->
+        raise ParserException,
+          message: "Expect '}' after block.",
+          tokens: tokens
+
+      [%Token{type: :right_brace} | rest] ->
+        statements = Enum.reverse(statements)
+        {statements, rest}
+
+      _ ->
+        {:ok, stmt, rest} = declaration(tokens)
+        block(rest, [stmt | statements])
+    end
   end
 
   defp expression_statement(tokens) do

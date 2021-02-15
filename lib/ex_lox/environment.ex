@@ -6,7 +6,7 @@ defmodule ExLox.Environment do
   @type t :: %Environment{ref: reference()}
 
   @enforce_keys [:ref]
-  defstruct [:ref]
+  defstruct [:ref, :enclosing]
 
   @spec init :: nil
   def init do
@@ -20,12 +20,19 @@ defmodule ExLox.Environment do
     }
   end
 
+  @spec from(t()) :: t()
+  def from(env) do
+    %Environment{
+      ref: new_table(),
+      enclosing: env
+    }
+  end
+
   @spec define(t(), String.t(), any()) :: nil
   def define(env, name, value) do
-    table =
-      get_table(env.ref)
-      |> Map.put(name, value)
+    table = get_table(env.ref)
 
+    table = Map.put(table, name, value)
     put_table(env.ref, table)
 
     nil
@@ -38,7 +45,11 @@ defmodule ExLox.Environment do
     if Map.has_key?(table, name) do
       {:ok, Map.get(table, name)}
     else
-      :error
+      if env.enclosing do
+        get(env.enclosing, name)
+      else
+        :error
+      end
     end
   end
 
@@ -51,7 +62,11 @@ defmodule ExLox.Environment do
       put_table(env.ref, table)
       :ok
     else
-      :error
+      if env.enclosing do
+        assign(env.enclosing, name, value)
+      else
+        :error
+      end
     end
   end
 
