@@ -8,6 +8,7 @@ defmodule ExLox.Stmt do
           | Stmt.If.t()
           | Stmt.Print.t()
           | Stmt.Var.t()
+          | Stmt.While.t()
 
   defmodule Block do
     @type t :: %__MODULE__{statements: list(Stmt.t())}
@@ -46,5 +47,12 @@ defmodule ExLox.Stmt do
 
     @enforce_keys [:name]
     defstruct [:name, initializer: nil]
+  end
+
+  defmodule While do
+    @type t :: %__MODULE__{condition: Expr.t(), body: Stmt.t()}
+
+    @enforce_keys [:condition, :body]
+    defstruct [:condition, :body]
   end
 end

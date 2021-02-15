@@ -1,7 +1,7 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
   alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, If, Print, Var}
+  alias ExLox.Stmt.{Block, Expression, If, Print, Var, While}
 
   defmodule ParserException do
     defexception [:message, :tokens]
@@ -81,6 +81,9 @@ defmodule ExLox.Parser do
       [%Token{type: :if} | rest] ->
         if_statement(rest)
 
+      [%Token{type: :while} | rest] ->
+        while_statement(rest)
+
       [%Token{type: :left_brace} | rest] ->
         {statements, rest} = block(rest, [])
         stmt = %Block{statements: statements}
@@ -116,6 +119,17 @@ defmodule ExLox.Parser do
     rest = consume(rest, :semicolon, "Expect ';' after value.")
 
     stmt = %Print{expression: value}
+    {stmt, rest}
+  end
+
+  defp while_statement(tokens) do
+    rest = consume(tokens, :left_paren, "Expect '(' after 'while'.")
+    {condition, rest} = expression(rest)
+    rest = consume(rest, :right_paren, "Expect ')' after condition.")
+
+    {body, rest} = statement(rest)
+
+    stmt = %While{condition: condition, body: body}
     {stmt, rest}
   end
 
