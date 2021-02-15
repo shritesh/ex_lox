@@ -1,18 +1,22 @@
 defmodule ExLox do
-  @moduledoc """
-  Documentation for `ExLox`.
-  """
+  def repl() do
+    case IO.gets("> ") do
+      :eof ->
+        nil
 
-  @doc """
-  Hello world.
+      source ->
+        run(source)
+        repl()
+    end
+  end
 
-  ## Examples
+  def run_file(filename) do
+    source = File.read!(filename)
 
-      iex> ExLox.hello()
-      :world
+    run(source)
+  end
 
-  """
-  def hello do
-    :world
+  defp run(source) do
+    IO.puts(source)
   end
 end
