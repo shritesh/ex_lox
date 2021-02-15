@@ -2,7 +2,7 @@ defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Func, Stmt}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, Function, If, Print, Var, While}
+  alias ExLox.Stmt.{Block, Expression, Function, If, Print, Return, Var, While}
 
   @type t :: %Interpreter{env: Environment.t()}
   @enforce_keys [:env, :globals]
@@ -88,6 +88,16 @@ defmodule ExLox.Interpreter do
         |> IO.puts()
 
         interpreter
+
+      %Return{value: value} ->
+        {value, interpreter} =
+          if value do
+            evaluate(value, interpreter)
+          else
+            {nil, interpreter}
+          end
+
+        throw({value, interpreter})
 
       %Var{name: name, initializer: nil} ->
         Environment.define(interpreter.env, name, nil)
@@ -259,9 +269,13 @@ defmodule ExLox.Interpreter do
       Environment.define(env, name, arg)
     end)
 
-    execute_block(func.body, env, interpreter)
-
-    {nil, interpreter}
+    try do
+      execute_block(func.body, env, interpreter)
+      {nil, interpreter}
+    catch
+      {value, _} ->
+        {value, interpreter}
+    end
   end
 
   defp truthy?(nil), do: false

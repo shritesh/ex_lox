@@ -8,6 +8,7 @@ defmodule ExLox.Stmt do
           | Stmt.Function.t()
           | Stmt.If.t()
           | Stmt.Print.t()
+          | Stmt.Return.t()
           | Stmt.Var.t()
           | Stmt.While.t()
 
@@ -52,6 +53,12 @@ defmodule ExLox.Stmt do
 
     @enforce_keys [:expression]
     defstruct [:expression]
+  end
+
+  defmodule Return do
+    @type t :: %__MODULE__{value: nil | Expr.t()}
+
+    defstruct [:value]
   end
 
   defmodule Var do
