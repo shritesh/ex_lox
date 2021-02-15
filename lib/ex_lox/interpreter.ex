@@ -67,7 +67,7 @@ defmodule ExLox.Interpreter do
         interpreter
 
       %Function{name: name, params: params, body: body} ->
-        func = %Func{params: params, body: body}
+        func = %Func{params: params, body: body, closure: interpreter.env}
         Environment.define(interpreter.env, name, func)
         interpreter
 
@@ -262,7 +262,7 @@ defmodule ExLox.Interpreter do
 
   @spec call(Func.t(), list(any()), t()) :: {any(), t()}
   defp call(func, args, interpreter) do
-    env = Environment.from(interpreter.globals)
+    env = Environment.from(func.closure)
 
     Enum.zip(func.params, args)
     |> Enum.each(fn {name, arg} ->
