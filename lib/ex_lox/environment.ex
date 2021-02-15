@@ -42,6 +42,19 @@ defmodule ExLox.Environment do
     end
   end
 
+  @spec assign(t(), String.t(), any()) :: :ok | :error
+  def assign(env, name, value) do
+    table = get_table(env.ref)
+
+    if Map.has_key?(table, name) do
+      table = Map.put(table, name, value)
+      put_table(env.ref, table)
+      :ok
+    else
+      :error
+    end
+  end
+
   defp new_table() do
     ref = make_ref()
     :ets.insert(@table_name, {ref, %{}})

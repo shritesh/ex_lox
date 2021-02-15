@@ -2,11 +2,19 @@ defmodule ExLox.Expr do
   alias __MODULE__
 
   @type t() ::
-          Expr.Binary.t()
+          Expr.Assign.t()
+          | Expr.Binary.t()
           | Expr.Grouping.t()
           | Expr.Literal.t()
           | Expr.Unary.t()
           | Expr.Variable.t()
+
+  defmodule Assign do
+    @type t :: %__MODULE__{name: String.t(), value: Expr.t(), line: non_neg_integer()}
+
+    @enforce_keys [:name, :value, :line]
+    defstruct [:name, :value, :line]
+  end
 
   defmodule Binary do
     @type binary_op :: :not_eq | :eq | :gr | :gr_eq | :le | :le_eq | :sub | :add | :div | :mul

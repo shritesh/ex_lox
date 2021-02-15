@@ -1,7 +1,7 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Stmt}
-  alias ExLox.Expr.{Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
   alias ExLox.Stmt.{Expression, Print, Var}
 
   @type t :: %Interpreter{env: Environment.t()}
@@ -62,6 +62,19 @@ defmodule ExLox.Interpreter do
   @spec evaluate(Expr.t(), t()) :: {any(), t()}
   defp evaluate(expr, interpreter) do
     case expr do
+      %Assign{name: name, value: value, line: line} ->
+        {value, interpreter} = evaluate(value, interpreter)
+
+        case Environment.assign(interpreter.env, name, value) do
+          :ok ->
+            {value, interpreter}
+
+          :error ->
+            raise RuntimeException,
+              message: "Undefined variable '#{name}'.",
+              line: line
+        end
+
       %Binary{operator: operator, left: left, right: right, line: line} ->
         {left, interpreter} = evaluate(left, interpreter)
         {right, interpreter} = evaluate(right, interpreter)

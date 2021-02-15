@@ -1,6 +1,6 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Unary, Variable}
   alias ExLox.Stmt.{Expression, Print, Var}
 
   defmodule ParserException do
@@ -100,7 +100,31 @@ defmodule ExLox.Parser do
   end
 
   defp expression(tokens) do
-    equality(tokens)
+    assignment(tokens)
+  end
+
+  defp assignment(tokens) do
+    {expr, rest} = equality(tokens)
+
+    {expr, rest} =
+      case rest do
+        [%Token{type: :equal} | rest] ->
+          {value, rest} = assignment(rest)
+
+          case expr do
+            %Variable{name: name, line: line} ->
+              expr = %Assign{name: name, value: value, line: line}
+              {expr, rest}
+
+            _ ->
+              raise ParserException, message: "Invalid assignment target.", tokens: rest
+          end
+
+        _ ->
+          {expr, rest}
+      end
+
+    {expr, rest}
   end
 
   defp equality(tokens) do
