@@ -1,5 +1,5 @@
 defmodule ExLox do
-  alias ExLox.{Parser, Scanner}
+  alias ExLox.{Interpreter, Parser, Scanner}
 
   @type error :: {non_neg_integer() | :eof, String.t()}
 
@@ -22,8 +22,9 @@ defmodule ExLox do
 
   defp run(source) do
     with {:ok, tokens} <- Scanner.scan(source),
-         {:ok, expr} <- Parser.parse(tokens) do
-      IO.inspect(expr)
+         {:ok, expr} <- Parser.parse(tokens),
+         {:ok, result} <- Interpreter.interpret(expr) do
+      IO.puts(result)
     else
       {:error, errors} when is_list(errors) ->
         Enum.each(errors, &print_error/1)
