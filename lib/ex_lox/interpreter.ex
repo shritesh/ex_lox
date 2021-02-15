@@ -1,20 +1,37 @@
 defmodule ExLox.Interpreter do
-  alias ExLox.Expr
+  alias ExLox.{Expr, Stmt}
   alias ExLox.Expr.{Binary, Grouping, Literal, Unary}
+  alias ExLox.Stmt.{Expression, Print}
 
   defmodule RuntimeException do
     defexception [:message, :line]
   end
 
-  @spec interpret(Expr.t()) :: {:ok, String.t()} | {:error, ExLox.error()}
-  def interpret(expr) do
+  @spec interpret(list(Stmt.t())) :: :ok | {:error, ExLox.error()}
+  def interpret(statements) do
     try do
-      result = evaluate(expr)
-      {:ok, stringify(result)}
+      Enum.each(statements, &execute/1)
     rescue
       e in [RuntimeException] ->
         {:error, {e.line, e.message}}
     end
+  end
+
+  @spec execute(Stmt.t()) :: nil
+  defp execute(stmt) do
+    case stmt do
+      %Expression{expression: expression} ->
+        evaluate(expression)
+
+      %Print{expression: expression} ->
+        value = evaluate(expression)
+
+        value
+        |> stringify()
+        |> IO.puts()
+    end
+
+    nil
   end
 
   @spec evaluate(Expr.t()) :: any()

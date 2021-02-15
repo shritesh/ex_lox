@@ -22,9 +22,8 @@ defmodule ExLox do
 
   defp run(source) do
     with {:ok, tokens} <- Scanner.scan(source),
-         {:ok, expr} <- Parser.parse(tokens),
-         {:ok, result} <- Interpreter.interpret(expr) do
-      IO.puts(result)
+         {:ok, statements} <- Parser.parse(tokens),
+         :ok <- Interpreter.interpret(statements) do
     else
       {:error, errors} when is_list(errors) ->
         Enum.each(errors, &print_error/1)

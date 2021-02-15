@@ -1,27 +1,56 @@
 defmodule ExLox.Parser do
-  alias ExLox.{Expr, Token}
+  alias ExLox.{Stmt, Token}
   alias ExLox.Expr.{Binary, Grouping, Literal, Unary}
+  alias ExLox.Stmt.{Expression, Print}
 
   defmodule ParserException do
     defexception [:message, :tokens]
   end
 
-  @spec parse(list(Token.t())) :: {:ok, Expr.t()} | {:error, ExLox.error()}
+  @spec parse(list(Token.t())) :: {:ok, list(Stmt.t())} | {:error, list(ExLox.error())}
   def parse(tokens) do
-    try do
-      {expr, _} = expression(tokens)
-      {:ok, expr}
-    rescue
-      e in [ParserException] ->
-        line =
-          case e.tokens do
-            [] -> :eof
-            [%Token{line: line} | _] -> line
-          end
+    parse([], [], tokens)
+  end
 
-        error = {line, e.message}
-        {:error, error}
+  defp parse(statements, errors, []) do
+    if Enum.empty?(errors) do
+      statements = Enum.reverse(statements)
+      {:ok, statements}
+    else
+      errors = Enum.reverse(errors)
+      {:error, errors}
     end
+  end
+
+  defp parse(statements, errors, tokens) do
+    {stmt, rest} = statement(tokens)
+    parse([stmt | statements], errors, rest)
+  end
+
+  defp statement(tokens) do
+    case tokens do
+      [%Token{type: :print} | rest] ->
+        print_statement(rest)
+
+      _ ->
+        expression_statement(tokens)
+    end
+  end
+
+  defp print_statement(tokens) do
+    {value, rest} = expression(tokens)
+    rest = consume(rest, :semicolon, "Expect ';' after value.")
+
+    stmt = %Print{expression: value}
+    {stmt, rest}
+  end
+
+  defp expression_statement(tokens) do
+    {value, rest} = expression(tokens)
+    rest = consume(rest, :semicolon, "Expect ';' after expression.")
+
+    stmt = %Expression{expression: value}
+    {stmt, rest}
   end
 
   defp expression(tokens) do
