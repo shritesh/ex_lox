@@ -1,7 +1,7 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, If, Print, Var, While}
+  alias ExLox.Stmt.{Block, Expression, If, Function, Print, Var, While}
 
   defmodule ParserException do
     defexception [:message, :tokens]
@@ -33,6 +33,7 @@ defmodule ExLox.Parser do
     try do
       {stmt, rest} =
         case tokens do
+          [%Token{type: :fun} | rest] -> function("function", rest)
           [%Token{type: :var} | rest] -> var_declaration(rest)
           _ -> statement(tokens)
         end
@@ -50,6 +51,42 @@ defmodule ExLox.Parser do
         tokens = synchronize(e.tokens)
 
         {:error, error, tokens}
+    end
+  end
+
+  defp function(kind, tokens) do
+    {name, rest} =
+      case tokens do
+        [%Token{type: {:identifier, name}} | rest] -> {name, rest}
+        _ -> raise ParserException, message: "Expect #{kind} name.", tokens: tokens
+      end
+
+    rest = consume(rest, :left_paren, "Expect '(' after #{kind} name.")
+    function_inner([], name, kind, rest)
+  end
+
+  defp function_inner(parameters, name, kind, tokens) do
+    case tokens do
+      [%Token{type: {:identifier, param}} | rest] ->
+        parameters = [param | parameters]
+
+        rest =
+          case rest do
+            [%Token{type: :comma} | rest] -> rest
+            _ -> rest
+          end
+
+        function_inner(parameters, name, kind, rest)
+
+      [%Token{type: :right_paren} | rest] ->
+        parameters = Enum.reverse(parameters)
+        rest = consume(rest, :left_brace, "Expect '{' before #{kind} body.")
+        {body, rest} = block(rest, [])
+        stmt = %Function{name: name, params: parameters, body: body}
+        {stmt, rest}
+
+      _ ->
+        raise ParserException, message: "Expect ')' after parameters.", tokens: tokens
     end
   end
 

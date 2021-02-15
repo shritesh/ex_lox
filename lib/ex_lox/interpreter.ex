@@ -1,8 +1,8 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
-  alias ExLox.{Environment, Expr, Stmt}
+  alias ExLox.{Environment, Expr, Func, Stmt}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, If, Print, Var, While}
+  alias ExLox.Stmt.{Block, Expression, Function, If, Print, Var, While}
 
   @type t :: %Interpreter{env: Environment.t()}
   @enforce_keys [:env, :globals]
@@ -64,6 +64,11 @@ defmodule ExLox.Interpreter do
 
       %Expression{expression: expression} ->
         {_, interpreter} = evaluate(expression, interpreter)
+        interpreter
+
+      %Function{name: name, params: params, body: body} ->
+        func = %Func{params: params, body: body}
+        Environment.define(interpreter.env, name, func)
         interpreter
 
       %If{condition: condition, then_branch: then_branch, else_branch: else_branch} ->
@@ -195,6 +200,14 @@ defmodule ExLox.Interpreter do
               message: "Expected #{arity} arguments but got #{length(arguments)}.",
               line: line
 
+          %Func{params: params} when length(params) == length(arguments) ->
+            call(callee, arguments, interpreter)
+
+          %Func{params: params} ->
+            raise RuntimeException,
+              message: "Expected #{length(params)} arguments but got #{length(arguments)}.",
+              line: line
+
           _ ->
             raise RuntimeException,
               message: "Can only call functions and classes.",
@@ -235,6 +248,20 @@ defmodule ExLox.Interpreter do
               line: line
         end
     end
+  end
+
+  @spec call(Func.t(), list(any()), t()) :: {any(), t()}
+  defp call(func, args, interpreter) do
+    env = Environment.from(interpreter.globals)
+
+    Enum.zip(func.params, args)
+    |> Enum.each(fn {name, arg} ->
+      Environment.define(env, name, arg)
+    end)
+
+    execute_block(func.body, env, interpreter)
+
+    {nil, interpreter}
   end
 
   defp truthy?(nil), do: false
