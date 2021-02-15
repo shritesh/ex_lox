@@ -6,6 +6,7 @@ defmodule ExLox.Expr do
           | Expr.Grouping.t()
           | Expr.Literal.t()
           | Expr.Unary.t()
+          | Expr.Variable.t()
 
   defmodule Binary do
     @type binary_op :: :not_eq | :eq | :gr | :gr_eq | :le | :le_eq | :sub | :add | :div | :mul
@@ -41,5 +42,12 @@ defmodule ExLox.Expr do
 
     @enforce_keys [:operator, :right]
     defstruct [:operator, :right]
+  end
+
+  defmodule Variable do
+    @type t :: %__MODULE__{name: String.t(), line: non_neg_integer()}
+
+    @enforce_keys [:name, :line]
+    defstruct [:name, :line]
   end
 end

@@ -3,33 +3,36 @@ defmodule ExLox do
 
   @type error :: {non_neg_integer() | :eof, String.t()}
 
-  def repl() do
+  def repl(interpreter \\ Interpreter.new()) do
     case IO.gets("> ") do
       :eof ->
         nil
 
       source ->
-        run(source)
-        repl()
+        interpreter = run(interpreter, source)
+        repl(interpreter)
     end
   end
 
   def run_file(filename) do
     source = File.read!(filename)
 
-    run(source)
+    run(Interpreter.new(), source)
   end
 
-  defp run(source) do
+  defp run(interpreter, source) do
     with {:ok, tokens} <- Scanner.scan(source),
          {:ok, statements} <- Parser.parse(tokens),
-         :ok <- Interpreter.interpret(statements) do
+         {:ok, interpreter} <- Interpreter.interpret(interpreter, statements) do
+      interpreter
     else
       {:error, errors} when is_list(errors) ->
         Enum.each(errors, &print_error/1)
+        interpreter
 
       {:error, error} ->
         print_error(error)
+        interpreter
     end
   end
 

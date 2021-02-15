@@ -1,45 +1,70 @@
 defmodule ExLox.Interpreter do
-  alias ExLox.{Expr, Stmt}
-  alias ExLox.Expr.{Binary, Grouping, Literal, Unary}
-  alias ExLox.Stmt.{Expression, Print}
+  alias __MODULE__
+  alias ExLox.{Environment, Expr, Stmt}
+  alias ExLox.Expr.{Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Stmt.{Expression, Print, Var}
+
+  @type t :: %Interpreter{env: Environment.t()}
+  @enforce_keys [:env]
+  defstruct [:env]
+
+  @spec new :: t()
+  def new do
+    Environment.init()
+
+    %Interpreter{
+      env: Environment.new()
+    }
+  end
 
   defmodule RuntimeException do
     defexception [:message, :line]
   end
 
-  @spec interpret(list(Stmt.t())) :: :ok | {:error, ExLox.error()}
-  def interpret(statements) do
+  @spec interpret(t(), list(Stmt.t())) :: {:ok, t()} | {:error, ExLox.error()}
+  def interpret(interpreter, statements) do
     try do
-      Enum.each(statements, &execute/1)
+      interpreter = Enum.reduce(statements, interpreter, &execute/2)
+      {:ok, interpreter}
     rescue
       e in [RuntimeException] ->
         {:error, {e.line, e.message}}
     end
   end
 
-  @spec execute(Stmt.t()) :: nil
-  defp execute(stmt) do
+  @spec execute(Stmt.t(), t()) :: t()
+  defp execute(stmt, interpreter) do
     case stmt do
       %Expression{expression: expression} ->
-        evaluate(expression)
+        {_, interpreter} = evaluate(expression, interpreter)
+        interpreter
 
       %Print{expression: expression} ->
-        value = evaluate(expression)
+        {value, interpreter} = evaluate(expression, interpreter)
 
         value
         |> stringify()
         |> IO.puts()
-    end
 
-    nil
+        interpreter
+
+      %Var{name: name, initializer: nil} ->
+        Environment.define(interpreter.env, name, nil)
+        interpreter
+
+      %Var{name: name, initializer: initializer} ->
+        {value, interpreter} = evaluate(initializer, interpreter)
+        Environment.define(interpreter.env, name, value)
+        interpreter
+    end
   end
 
-  @spec evaluate(Expr.t()) :: any()
-  defp evaluate(expr) do
+  @spec evaluate(Expr.t(), t()) :: {any(), t()}
+  defp evaluate(expr, interpreter) do
     case expr do
       %Binary{operator: operator, left: left, right: right, line: line} ->
-        left = evaluate(left)
-        right = evaluate(right)
+        {left, interpreter} = evaluate(left, interpreter)
+        {right, interpreter} = evaluate(right, interpreter)
 
         result =
           case operator do
@@ -87,21 +112,32 @@ defmodule ExLox.Interpreter do
               left <= right
           end
 
-        result
+        {result, interpreter}
 
       %Grouping{expression: expr} ->
-        evaluate(expr)
+        evaluate(expr, interpreter)
 
       %Literal{value: value} ->
-        value
+        {value, interpreter}
 
       %Unary{operator: :not, right: right} ->
-        expr = evaluate(right)
-        !truthy?(expr)
+        {expr, interpreter} = evaluate(right, interpreter)
+        {!truthy?(expr), interpreter}
 
       %Unary{operator: :neg, right: right} ->
-        expr = evaluate(right)
-        -expr
+        {expr, interpreter} = evaluate(right, interpreter)
+        {-expr, interpreter}
+
+      %Variable{name: name, line: line} ->
+        case Environment.get(interpreter.env, name) do
+          {:ok, val} ->
+            {val, interpreter}
+
+          :error ->
+            raise RuntimeException,
+              message: "Undefined variable '#{name}'.",
+              line: line
+        end
     end
   end
 

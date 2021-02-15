@@ -1,7 +1,7 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Binary, Grouping, Literal, Unary}
-  alias ExLox.Stmt.{Expression, Print}
+  alias ExLox.Expr.{Binary, Grouping, Literal, Unary, Variable}
+  alias ExLox.Stmt.{Expression, Print, Var}
 
   defmodule ParserException do
     defexception [:message, :tokens]
@@ -23,8 +23,54 @@ defmodule ExLox.Parser do
   end
 
   defp parse(statements, errors, tokens) do
-    {stmt, rest} = statement(tokens)
-    parse([stmt | statements], errors, rest)
+    case declaration(tokens) do
+      {:ok, stmt, rest} -> parse([stmt | statements], errors, rest)
+      {:error, error, rest} -> parse(statements, [error | errors], rest)
+    end
+  end
+
+  defp declaration(tokens) do
+    try do
+      {stmt, rest} =
+        case tokens do
+          [%Token{type: :var} | rest] -> var_declaration(rest)
+          _ -> statement(tokens)
+        end
+
+      {:ok, stmt, rest}
+    rescue
+      e in [ParserException] ->
+        line =
+          case e.tokens do
+            [] -> :eof
+            [%Token{line: line} | _] -> line
+          end
+
+        error = {line, e.message}
+        tokens = synchronize(e.tokens)
+
+        {:error, error, tokens}
+    end
+  end
+
+  defp var_declaration(tokens) do
+    case tokens do
+      [%Token{type: {:identifier, name}}, %Token{type: :equal} | rest] ->
+        {initializer, rest} = expression(rest)
+        rest = consume(rest, :semicolon, "Expect ';' after variable declaration")
+
+        stmt = %Var{name: name, initializer: initializer}
+        {stmt, rest}
+
+      [%Token{type: {:identifier, name}} | rest] ->
+        rest = consume(rest, :semicolon, "Expect ';' after variable declaration")
+
+        stmt = %Var{name: name}
+        {stmt, rest}
+
+      _ ->
+        raise ParserException, message: "Expect variable name.", tokens: tokens
+    end
   end
 
   defp statement(tokens) do
@@ -194,6 +240,10 @@ defmodule ExLox.Parser do
         expr = %Literal{value: string}
         {expr, rest}
 
+      [%Token{type: {:identifier, identifier}, line: line} | rest] ->
+        expr = %Variable{name: identifier, line: line}
+        {expr, rest}
+
       [%Token{type: :left_paren} | rest] ->
         {expr, rest} = expression(rest)
         rest = consume(rest, :right_paren, "Expect ')' after expression.")
@@ -203,6 +253,23 @@ defmodule ExLox.Parser do
 
       _ ->
         raise ParserException, message: "Expect expression.", tokens: tokens
+    end
+  end
+
+  defp synchronize(tokens) do
+    case tokens do
+      [] ->
+        []
+
+      [%Token{type: :semicolon} | rest] ->
+        rest
+
+      [%Token{type: type} | _rest]
+      when type in [:class, :fun, :var, :for, :if, :while, :print, :return] ->
+        tokens
+
+      [_token | rest] ->
+        synchronize(rest)
     end
   end
 
