@@ -1,5 +1,5 @@
 defmodule ExLox do
-  alias ExLox.Scanner
+  alias ExLox.{Parser, Scanner}
 
   @type error :: {non_neg_integer() | :eof, String.t()}
 
@@ -21,10 +21,20 @@ defmodule ExLox do
   end
 
   defp run(source) do
-    case Scanner.scan(source) do
-      {:ok, tokens} -> IO.inspect(tokens)
-      {:error, errors} -> Enum.each(errors, &print_error/1)
+    with {:ok, tokens} <- Scanner.scan(source),
+         {:ok, expr} <- Parser.parse(tokens) do
+      IO.inspect(expr)
+    else
+      {:error, errors} when is_list(errors) ->
+        Enum.each(errors, &print_error/1)
+
+      {:error, error} ->
+        print_error(error)
     end
+  end
+
+  defp print_error({:eof, message}) do
+    IO.puts(:stderr, "[end of file] Error: #{message}")
   end
 
   defp print_error({line, message}) do
