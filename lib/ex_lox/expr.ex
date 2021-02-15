@@ -4,6 +4,7 @@ defmodule ExLox.Expr do
   @type t() ::
           Expr.Assign.t()
           | Expr.Binary.t()
+          | Expr.Call.t()
           | Expr.Grouping.t()
           | Expr.Literal.t()
           | Expr.Logical.t()
@@ -28,6 +29,13 @@ defmodule ExLox.Expr do
 
     @enforce_keys [:left, :operator, :right, :line]
     defstruct [:left, :operator, :right, :line]
+  end
+
+  defmodule Call do
+    @type t :: %__MODULE__{callee: Expr.t(), arguments: list(Expr.t()), line: non_neg_integer()}
+
+    @enforce_keys [:callee, :arguments, :line]
+    defstruct [:callee, :paren, :arguments, :line]
   end
 
   defmodule Grouping do

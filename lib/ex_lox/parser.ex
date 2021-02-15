@@ -1,6 +1,6 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Expression, If, Print, Var, While}
 
   defmodule ParserException do
@@ -387,7 +387,41 @@ defmodule ExLox.Parser do
         {expr, rest}
 
       _ ->
-        primary(tokens)
+        call(tokens)
+    end
+  end
+
+  defp call(tokens) do
+    {expr, rest} = primary(tokens)
+    call_inner(expr, rest)
+  end
+
+  defp call_inner(expr, tokens) do
+    case tokens do
+      [%Token{type: :left_paren} | rest] ->
+        {expr, rest} = finish_call([], expr, rest)
+        call_inner(expr, rest)
+
+      _ ->
+        {expr, tokens}
+    end
+  end
+
+  defp finish_call(arguments, callee, tokens) do
+    case tokens do
+      [%Token{type: :right_paren, line: line} | rest] ->
+        arguments = Enum.reverse(arguments)
+        expr = %Call{callee: callee, arguments: arguments, line: line}
+        {expr, rest}
+
+      _ ->
+        {expr, rest} = expression(tokens)
+
+        case rest do
+          [%Token{type: :comma} | rest] -> finish_call([expr | arguments], callee, rest)
+          [%Token{type: :right_paren} | _rest] -> finish_call([expr | arguments], callee, rest)
+          _ -> raise ParserException, message: "Expect ')' after arguments.", tokens: rest
+        end
     end
   end
 

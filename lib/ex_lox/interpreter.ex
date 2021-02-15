@@ -1,19 +1,42 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Stmt}
-  alias ExLox.Expr.{Assign, Binary, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Expression, If, Print, Var, While}
 
   @type t :: %Interpreter{env: Environment.t()}
-  @enforce_keys [:env]
-  defstruct [:env]
+  @enforce_keys [:env, :globals]
+  defstruct [:env, :globals]
 
   @spec new :: t()
   def new do
     Environment.init()
 
+    globals = Environment.new()
+    Environment.define(globals, "clock", fn -> System.os_time(:millisecond) / 1000.0 end)
+
+    Environment.define(globals, "char", fn ->
+      input = IO.getn("")
+      if is_binary(input), do: input
+    end)
+
+    Environment.define(globals, "string", fn ->
+      input = IO.gets("")
+      if is_binary(input), do: String.replace_suffix(input, "\n", "")
+    end)
+
+    Environment.define(globals, "number", fn ->
+      with input when is_binary(input) <- IO.gets(""),
+           {number, _} <- Float.parse(input) do
+        number
+      else
+        _ -> nil
+      end
+    end)
+
     %Interpreter{
-      env: Environment.new()
+      globals: globals,
+      env: globals
     }
   end
 
@@ -156,6 +179,28 @@ defmodule ExLox.Interpreter do
 
         {result, interpreter}
 
+      %Call{callee: callee, arguments: arguments, line: line} ->
+        {callee, interpreter} = evaluate(callee, interpreter)
+        {arguments, interpreter} = Enum.map_reduce(arguments, interpreter, &evaluate/2)
+
+        case callee do
+          native_fn when is_function(native_fn, length(arguments)) ->
+            result = apply(native_fn, arguments)
+            {result, interpreter}
+
+          native_fn when is_function(native_fn) ->
+            {:arity, arity} = Elixir.Function.info(native_fn, :arity)
+
+            raise RuntimeException,
+              message: "Expected #{arity} arguments but got #{length(arguments)}.",
+              line: line
+
+          _ ->
+            raise RuntimeException,
+              message: "Can only call functions and classes.",
+              line: line
+        end
+
       %Grouping{expression: expr} ->
         evaluate(expr, interpreter)
 
@@ -203,5 +248,6 @@ defmodule ExLox.Interpreter do
 
   defp stringify(nil), do: "nil"
   defp stringify(num) when is_float(num), do: String.trim_trailing(to_string(num), ".0")
+  defp stringify(fun) when is_function(fun), do: "<fn>"
   defp stringify(obj), do: to_string(obj)
 end
