@@ -30,11 +30,12 @@ defmodule ExLox.Stmt do
     @type t :: %__MODULE__{
             name: String.t(),
             params: list(String.t()),
-            body: list(Stmt.t())
+            body: list(Stmt.t()),
+            line: non_neg_integer()
           }
 
-    @enforce_keys [:name, :params, :body]
-    defstruct [:name, :params, :body]
+    @enforce_keys [:name, :params, :body, :line]
+    defstruct [:name, :params, :body, :line]
   end
 
   defmodule If do
@@ -56,16 +57,17 @@ defmodule ExLox.Stmt do
   end
 
   defmodule Return do
-    @type t :: %__MODULE__{value: nil | Expr.t()}
+    @type t :: %__MODULE__{value: nil | Expr.t(), line: non_neg_integer()}
 
-    defstruct [:value]
+    @enforce_keys [:line]
+    defstruct [:value, :line]
   end
 
   defmodule Var do
-    @type t :: %__MODULE__{name: String.t(), initializer: Expr.t() | nil}
+    @type t :: %__MODULE__{name: String.t(), initializer: Expr.t() | nil, line: non_neg_integer()}
 
-    @enforce_keys [:name]
-    defstruct [:name, initializer: nil]
+    @enforce_keys [:name, :line]
+    defstruct [:name, :line, initializer: nil]
   end
 
   defmodule While do

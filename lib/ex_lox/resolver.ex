@@ -7,10 +7,10 @@ defmodule ExLox.Resolver do
     defexception [:message, :line]
   end
 
-  @spec resolve(list(Stmt.t())) :: {:ok, list(Stmt.t())} | {:error, ExLox.error()}
+  @spec resolve(list(Stmt.t())) :: {:ok, list(Stmt.t())} | {:errors, ExLox.error()}
   def resolve(statements) do
     try do
-      {statements, _scopes} = resolve(statements, [])
+      {statements, _scopes} = resolve(statements, {[], :none})
       {:ok, statements}
     rescue
       e in [ResolverException] ->
@@ -36,25 +36,33 @@ defmodule ExLox.Resolver do
 
         {%Expression{expression: expression}, scopes}
 
-      %Function{name: name, params: params, body: body} ->
+      %Function{name: name, params: params, body: body, line: line} ->
         scopes =
           scopes
-          |> declare(name)
+          |> declare(name, line)
           |> define(name)
+
+        # TODO: Extract resolve function
+
+        {current_scopes, enclosing_function} = scopes
+        scopes = {current_scopes, :function}
 
         scopes = begin_scope(scopes)
 
         scopes =
           Enum.reduce(params, scopes, fn name, scopes ->
             scopes
-            |> declare(name)
+            |> declare(name, line)
             |> define(name)
           end)
 
         {body, scopes} = resolve(body, scopes)
         scopes = end_scope(scopes)
 
-        {%Function{name: name, params: params, body: body}, scopes}
+        {current_scopes, _current_function} = scopes
+        scopes = {current_scopes, enclosing_function}
+
+        {%Function{name: name, params: params, body: body, line: line}, scopes}
 
       %If{condition: condition, then_branch: then_branch, else_branch: else_branch} ->
         {condition, scopes} = resolve(condition, scopes)
@@ -74,7 +82,13 @@ defmodule ExLox.Resolver do
 
         {%Print{expression: expression}, scopes}
 
-      %Return{value: value} ->
+      %Return{value: value, line: line} ->
+        {_current_scopes, current_function} = scopes
+
+        if current_function == :none do
+          raise ResolverException, message: "Can't return from top-level code.", line: line
+        end
+
         {value, scopes} =
           if value do
             resolve(value, scopes)
@@ -82,10 +96,10 @@ defmodule ExLox.Resolver do
             {nil, scopes}
           end
 
-        {%Return{value: value}, scopes}
+        {%Return{value: value, line: line}, scopes}
 
-      %Var{name: name, initializer: initializer} ->
-        scopes = declare(scopes, name)
+      %Var{name: name, initializer: initializer, line: line} ->
+        scopes = declare(scopes, name, line)
 
         {initializer, scopes} =
           if initializer do
@@ -96,7 +110,7 @@ defmodule ExLox.Resolver do
 
         scopes = define(scopes, name)
 
-        {%Var{name: name, initializer: initializer}, scopes}
+        {%Var{name: name, initializer: initializer, line: line}, scopes}
 
       %While{condition: condition, body: body} ->
         {condition, scopes} = resolve(condition, scopes)
@@ -142,7 +156,7 @@ defmodule ExLox.Resolver do
         {%Unary{operator: operator, right: right}, scopes}
 
       %Variable{name: name, line: line} ->
-        with [locals | _rest] <- scopes,
+        with {[locals | _rest], _current_function} <- scopes,
              :declared <- locals[name] do
           raise ResolverException,
             message: "Can't read local variable '#{name}' in its own initializer.",
@@ -159,33 +173,39 @@ defmodule ExLox.Resolver do
     Enum.find_index(scopes, fn locals -> Map.has_key?(locals, name) end)
   end
 
-  defp declare(scopes, name) do
+  defp declare(scopes, name, line) do
     case scopes do
-      [] ->
-        []
+      {[], current_function} ->
+        {[], current_function}
 
-      [locals | rest] ->
+      {[locals | rest], current_function} ->
+        if Map.has_key?(locals, name) do
+          raise ResolverException,
+            message: "Already variable with this name in this scope.",
+            line: line
+        end
+
         locals = Map.put(locals, name, :declared)
-        [locals | rest]
+        {[locals | rest], current_function}
     end
   end
 
   defp define(scopes, name) do
     case scopes do
-      [] ->
-        []
+      {[], current_function} ->
+        {[], current_function}
 
-      [locals | rest] ->
+      {[locals | rest], current_function} ->
         locals = Map.put(locals, name, :defined)
-        [locals | rest]
+        {[locals | rest], current_function}
     end
   end
 
-  defp begin_scope(scopes) do
-    [%{} | scopes]
+  defp begin_scope({scopes, current_function}) do
+    {[%{} | scopes], current_function}
   end
 
-  defp end_scope([_local | scopes]) do
-    scopes
+  defp end_scope({[_local | scopes], current_function}) do
+    {scopes, current_function}
   end
 end

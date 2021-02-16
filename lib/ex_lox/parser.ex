@@ -78,11 +78,11 @@ defmodule ExLox.Parser do
 
         function_inner(parameters, name, kind, rest)
 
-      [%Token{type: :right_paren} | rest] ->
+      [%Token{type: :right_paren, line: line} | rest] ->
         parameters = Enum.reverse(parameters)
         rest = consume(rest, :left_brace, "Expect '{' before #{kind} body.")
         {body, rest} = block(rest, [])
-        stmt = %Function{name: name, params: parameters, body: body}
+        stmt = %Function{name: name, params: parameters, body: body, line: line}
         {stmt, rest}
 
       _ ->
@@ -92,17 +92,17 @@ defmodule ExLox.Parser do
 
   defp var_declaration(tokens) do
     case tokens do
-      [%Token{type: {:identifier, name}}, %Token{type: :equal} | rest] ->
+      [%Token{type: {:identifier, name}, line: line}, %Token{type: :equal} | rest] ->
         {initializer, rest} = expression(rest)
         rest = consume(rest, :semicolon, "Expect ';' after variable declaration")
 
-        stmt = %Var{name: name, initializer: initializer}
+        stmt = %Var{name: name, initializer: initializer, line: line}
         {stmt, rest}
 
-      [%Token{type: {:identifier, name}} | rest] ->
+      [%Token{type: {:identifier, name}, line: line} | rest] ->
         rest = consume(rest, :semicolon, "Expect ';' after variable declaration")
 
-        stmt = %Var{name: name}
+        stmt = %Var{name: name, line: line}
         {stmt, rest}
 
       _ ->
@@ -220,15 +220,21 @@ defmodule ExLox.Parser do
 
   defp return_statement(tokens) do
     case tokens do
-      [%Token{type: :semicolon} | rest] ->
-        stmt = %Return{value: nil}
+      [%Token{type: :semicolon, line: line} | rest] ->
+        stmt = %Return{value: nil, line: line}
         {stmt, rest}
 
       _ ->
         {expr, rest} = expression(tokens)
-        rest = consume(rest, :semicolon, "Expect ';' after return value.")
-        stmt = %Return{value: expr}
-        {stmt, rest}
+
+        case rest do
+          [%Token{type: :semicolon, line: line} | rest] ->
+            stmt = %Return{value: expr, line: line}
+            {stmt, rest}
+
+          _ ->
+            raise ParserException, message: "Expect ';' after return value.", tokens: rest
+        end
     end
   end
 

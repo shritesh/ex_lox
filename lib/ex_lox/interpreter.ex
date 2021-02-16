@@ -4,7 +4,7 @@ defmodule ExLox.Interpreter do
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Expression, Function, If, Print, Return, Var, While}
 
-  @type t :: %Interpreter{env: Environment.t()}
+  @type t :: %Interpreter{env: Environment.t(), globals: Environment.t()}
   @enforce_keys [:env, :globals]
   defstruct [:env, :globals]
 

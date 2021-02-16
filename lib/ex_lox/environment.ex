@@ -3,7 +3,7 @@ defmodule ExLox.Environment do
 
   @table_name :environments
 
-  @type t :: %Environment{ref: reference()}
+  @type t :: %Environment{ref: reference(), enclosing: nil | t()}
 
   @enforce_keys [:ref]
   defstruct [:ref, :enclosing]
