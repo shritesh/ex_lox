@@ -304,5 +304,6 @@ defmodule ExLox.Interpreter do
   defp stringify(nil), do: "nil"
   defp stringify(num) when is_float(num), do: String.trim_trailing(to_string(num), ".0")
   defp stringify(fun) when is_function(fun), do: "<fn>"
+  defp stringify(%Func{params: params}), do: "<fn/#{length(params)}>"
   defp stringify(obj), do: to_string(obj)
 end
