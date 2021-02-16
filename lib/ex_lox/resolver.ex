@@ -169,7 +169,7 @@ defmodule ExLox.Resolver do
     end
   end
 
-  defp resolve_distance(scopes, name) do
+  defp resolve_distance({scopes, _}, name) do
     Enum.find_index(scopes, fn locals -> Map.has_key?(locals, name) end)
   end
 
