@@ -1,21 +1,10 @@
 # ExLox
 
-**TODO: Add description**
+JLox from [Crafting Interpreters](https://craftinginterpreters.com), written in Elixir
 
-## Installation
+Run with `mix lox` or `mix lox filename`
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `ex_lox` to your list of dependencies in `mix.exs`:
+# Differences from JLox
 
-```elixir
-def deps do
-  [
-    {:ex_lox, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/ex_lox](https://hexdocs.pm/ex_lox).
-
+- No 255 arguments limit for functions.
+- `char()`, `string()` and `number()` functions to read from stdin.
