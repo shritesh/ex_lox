@@ -1,0 +1,5 @@
+if (false) {
+    print "oops";
+} else {
+    print "Hell yeah!!";
+}
