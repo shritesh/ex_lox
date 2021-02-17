@@ -1,6 +1,6 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
-  alias ExLox.{Environment, Expr, Func, Klass, Stmt}
+  alias ExLox.{Environment, Expr, Func, Instance, Klass, Stmt}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
@@ -230,6 +230,9 @@ defmodule ExLox.Interpreter do
               message: "Expected #{length(params)} arguments but got #{length(arguments)}.",
               line: line
 
+          %Klass{} ->
+            call(callee, arguments, interpreter)
+
           _ ->
             raise RuntimeException,
               message: "Can only call functions and classes.",
@@ -279,8 +282,14 @@ defmodule ExLox.Interpreter do
     end
   end
 
+  @spec call(Klass.t(), list(any()), t()) :: {any(), t()}
+  defp call(%Klass{} = klass, _args, interpreter) do
+    instance = %Instance{klass: klass}
+    {instance, interpreter}
+  end
+
   @spec call(Func.t(), list(any()), t()) :: {any(), t()}
-  defp call(func, args, interpreter) do
+  defp call(%Func{} = func, args, interpreter) do
     env = Environment.from(func.closure)
 
     Enum.zip(func.params, args)
@@ -311,5 +320,6 @@ defmodule ExLox.Interpreter do
   defp stringify(fun) when is_function(fun), do: "<fn>"
   defp stringify(%Func{params: params}), do: "<fn/#{length(params)}>"
   defp stringify(%Klass{name: name}), do: name
+  defp stringify(%Instance{klass: klass}), do: "#{stringify(klass)} instance"
   defp stringify(obj), do: to_string(obj)
 end
