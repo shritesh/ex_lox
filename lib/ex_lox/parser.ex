@@ -1,7 +1,7 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, If, Function, Print, Return, Var, While}
+  alias ExLox.Stmt.{Block, Class, Expression, If, Function, Print, Return, Var, While}
 
   defmodule ParserException do
     defexception [:message, :tokens]
@@ -33,6 +33,7 @@ defmodule ExLox.Parser do
     try do
       {stmt, rest} =
         case tokens do
+          [%Token{type: :class} | rest] -> class_declaration(rest)
           [%Token{type: :fun} | rest] -> function("function", rest)
           [%Token{type: :var} | rest] -> var_declaration(rest)
           _ -> statement(tokens)
@@ -51,6 +52,33 @@ defmodule ExLox.Parser do
         tokens = synchronize(e.tokens)
 
         {:error, error, tokens}
+    end
+  end
+
+  defp class_declaration(tokens) do
+    case tokens do
+      [%Token{type: {:identifier, name}} | rest] ->
+        rest = consume(rest, :left_brace, "Expect '{' before class body.")
+        class_inner([], name, rest)
+
+      _ ->
+        raise ParserException, message: "Expect class name.", tokens: tokens
+    end
+  end
+
+  defp class_inner(methods, name, tokens) do
+    case tokens do
+      [%Token{type: :right_brace, line: line} | rest] ->
+        methods = Enum.reverse(methods)
+        stmt = %Class{name: name, methods: methods, line: line}
+        {stmt, rest}
+
+      [%Token{type: {:identifier, _}} | _rest] ->
+        {method, rest} = function("class", tokens)
+        class_inner([method | methods], name, rest)
+
+      _ ->
+        raise ParserException, message: "Expect '}' after class body.", tokens: tokens
     end
   end
 

@@ -1,7 +1,7 @@
 defmodule ExLox.Resolver do
   alias ExLox.Stmt
-  alias ExLox.Stmt.{Block, Expression, Function, If, Print, Return, Var, While}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   defmodule ResolverException do
     defexception [:message, :line]
@@ -30,6 +30,11 @@ defmodule ExLox.Resolver do
         scopes = end_scope(scopes)
 
         {%Block{statements: statements}, scopes}
+
+      %Class{name: name, methods: methods, line: line} ->
+        scopes = scopes |> declare(name, line) |> define(name)
+
+        {%Class{name: name, methods: methods, line: line}, scopes}
 
       %Expression{expression: expression} ->
         {expression, scopes} = resolve(expression, scopes)

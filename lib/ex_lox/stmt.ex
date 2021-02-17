@@ -4,6 +4,7 @@ defmodule ExLox.Stmt do
 
   @type t ::
           Stmt.Block.t()
+          | Stmt.Class.t()
           | Stmt.Expression.t()
           | Stmt.Function.t()
           | Stmt.If.t()
@@ -17,6 +18,17 @@ defmodule ExLox.Stmt do
 
     @enforce_keys [:statements]
     defstruct [:statements]
+  end
+
+  defmodule Class do
+    @type t :: %__MODULE__{
+            name: String.t(),
+            methods: list(Stmr.Function.t()),
+            line: non_neg_integer()
+          }
+
+    @enforce_keys [:name, :methods, :line]
+    defstruct [:name, :methods, :line]
   end
 
   defmodule Expression do

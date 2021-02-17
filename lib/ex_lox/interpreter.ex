@@ -1,8 +1,8 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
-  alias ExLox.{Environment, Expr, Func, Stmt}
+  alias ExLox.{Environment, Expr, Func, Klass, Stmt}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
-  alias ExLox.Stmt.{Block, Expression, Function, If, Print, Return, Var, While}
+  alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   @type t :: %Interpreter{env: Environment.t(), globals: Environment.t()}
   @enforce_keys [:env, :globals]
@@ -79,6 +79,11 @@ defmodule ExLox.Interpreter do
           else_branch -> execute(else_branch, interpreter)
           true -> interpreter
         end
+
+      %Class{name: name} ->
+        klass = %Klass{name: name}
+        Environment.define(interpreter.env, name, klass)
+        interpreter
 
       %Print{expression: expression} ->
         {value, interpreter} = evaluate(expression, interpreter)
@@ -305,5 +310,6 @@ defmodule ExLox.Interpreter do
   defp stringify(num) when is_float(num), do: String.trim_trailing(to_string(num), ".0")
   defp stringify(fun) when is_function(fun), do: "<fn>"
   defp stringify(%Func{params: params}), do: "<fn/#{length(params)}>"
+  defp stringify(%Klass{name: name}), do: name
   defp stringify(obj), do: to_string(obj)
 end
