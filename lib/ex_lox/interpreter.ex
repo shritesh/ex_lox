@@ -81,7 +81,7 @@ defmodule ExLox.Interpreter do
         interpreter
 
       %Function{name: name, params: params, body: body} ->
-        func = %Func{params: params, body: body, closure: interpreter.env}
+        func = %Func{params: params, body: body, closure: interpreter.env, initializer?: false}
         Environment.define(interpreter.env, name, func)
         interpreter
 
@@ -97,7 +97,13 @@ defmodule ExLox.Interpreter do
       %Class{name: name, methods: methods} ->
         methods =
           Enum.into(methods, %{}, fn %Function{name: name, params: params, body: body} ->
-            {name, %Func{params: params, body: body, closure: interpreter.env}}
+            {name,
+             %Func{
+               params: params,
+               body: body,
+               closure: interpreter.env,
+               initializer?: name == "init"
+             }}
           end)
 
         klass = %Klass{name: name, methods: methods}
@@ -369,10 +375,21 @@ defmodule ExLox.Interpreter do
 
     try do
       execute_block(func.body, env, interpreter)
-      {nil, interpreter}
+
+      if func.initializer? do
+        {:ok, this} = Environment.get_at(func.closure, 0, "this")
+        {this, interpreter}
+      else
+        {nil, interpreter}
+      end
     catch
       {value, _} ->
-        {value, interpreter}
+        if func.initializer? do
+          {:ok, this} = Environment.get_at(func.closure, 0, "this")
+          {this, interpreter}
+        else
+          {value, interpreter}
+        end
     end
   end
 

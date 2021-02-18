@@ -23,7 +23,7 @@ defmodule ExLox.Resolver do
 
   @type t :: %__MODULE__{
           scopes: list(%{optional(String.t()) => :declared | :defined}),
-          current_function: :none | :function | :method,
+          current_function: :none | :function | :method | :initializer,
           current_class: :none | :class
         }
   defstruct [:scopes, :current_function, :current_class]
@@ -77,7 +77,11 @@ defmodule ExLox.Resolver do
 
         {methods, resolver} =
           Enum.map_reduce(methods, resolver, fn function, resolver ->
-            resolve_function(resolver, function, :method)
+            if function.name == "init" do
+              resolve_function(resolver, function, :initializer)
+            else
+              resolve_function(resolver, function, :method)
+            end
           end)
 
         resolver = end_scope(resolver)
@@ -124,6 +128,12 @@ defmodule ExLox.Resolver do
 
         {value, resolver} =
           if value do
+            if resolver.current_function == :initializer do
+              raise ResolverException,
+                message: "Can't return a value from an intializer.",
+                line: line
+            end
+
             resolve(value, resolver)
           else
             {nil, resolver}
