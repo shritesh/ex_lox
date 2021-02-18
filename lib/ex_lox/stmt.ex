@@ -24,11 +24,12 @@ defmodule ExLox.Stmt do
     @type t :: %__MODULE__{
             name: String.t(),
             methods: list(Stmt.Function.t()),
+            superclass: Expr.Variable.t() | nil,
             line: non_neg_integer()
           }
 
     @enforce_keys [:name, :methods, :line]
-    defstruct [:name, :methods, :line]
+    defstruct [:name, :methods, :superclass, :line]
   end
 
   defmodule Expression do

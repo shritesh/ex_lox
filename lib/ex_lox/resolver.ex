@@ -60,7 +60,7 @@ defmodule ExLox.Resolver do
 
         {%Block{statements: statements}, resolver}
 
-      %Class{name: name, methods: methods, line: line} ->
+      %Class{name: name, superclass: superclass, methods: methods, line: line} ->
         enclosing_class = resolver.current_class
 
         resolver = %{resolver | current_class: :class}
@@ -69,6 +69,19 @@ defmodule ExLox.Resolver do
           resolver
           |> declare(name, line)
           |> define(name)
+
+        {superclass, resolver} =
+          if superclass do
+            if superclass.name == name do
+              raise ResolverException,
+                message: "A class can't inherit from itself.",
+                line: superclass.line
+            end
+
+            resolve(superclass, resolver)
+          else
+            {nil, resolver}
+          end
 
         resolver =
           resolver
@@ -88,7 +101,7 @@ defmodule ExLox.Resolver do
 
         resolver = %{resolver | current_class: enclosing_class}
 
-        {%Class{name: name, methods: methods, line: line}, resolver}
+        {%Class{name: name, superclass: superclass, methods: methods, line: line}, resolver}
 
       %Expression{expression: expression} ->
         {expression, resolver} = resolve(expression, resolver)

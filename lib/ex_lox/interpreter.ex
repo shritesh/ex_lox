@@ -94,7 +94,22 @@ defmodule ExLox.Interpreter do
           true -> interpreter
         end
 
-      %Class{name: name, methods: methods} ->
+      %Class{name: name, superclass: superclass, methods: methods} ->
+        {superclass, interpreter} =
+          if superclass do
+            case evaluate(superclass, interpreter) do
+              {%Klass{} = superclass, interpreter} ->
+                {superclass, interpreter}
+
+              _ ->
+                raise RuntimeException,
+                  message: "Superclass must be a class.",
+                  line: superclass.line
+            end
+          else
+            {nil, interpreter}
+          end
+
         methods =
           Enum.into(methods, %{}, fn %Function{name: name, params: params, body: body} ->
             {name,
@@ -106,7 +121,7 @@ defmodule ExLox.Interpreter do
              }}
           end)
 
-        klass = %Klass{name: name, methods: methods}
+        klass = %Klass{name: name, methods: methods, superklass: superclass}
         Environment.define(interpreter.env, name, klass)
         interpreter
 

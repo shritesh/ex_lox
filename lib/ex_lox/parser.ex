@@ -72,24 +72,36 @@ defmodule ExLox.Parser do
   defp class_declaration(tokens) do
     case tokens do
       [%Token{type: {:identifier, name}} | rest] ->
+        {superclass, rest} =
+          case rest do
+            [%Token{type: :less}, %Token{type: {:identifier, name}, line: line} | rest] ->
+              {%Variable{name: name, line: line}, rest}
+
+            [%Token{type: :less} | rest] ->
+              raise ParserException, message: "Expect superclass name.", tokens: rest
+
+            _ ->
+              {nil, rest}
+          end
+
         rest = consume(rest, :left_brace, "Expect '{' before class body.")
-        class_inner([], name, rest)
+        class_inner([], superclass, name, rest)
 
       _ ->
         raise ParserException, message: "Expect class name.", tokens: tokens
     end
   end
 
-  defp class_inner(methods, name, tokens) do
+  defp class_inner(methods, superclass, name, tokens) do
     case tokens do
       [%Token{type: :right_brace, line: line} | rest] ->
         methods = Enum.reverse(methods)
-        stmt = %Class{name: name, methods: methods, line: line}
+        stmt = %Class{name: name, superclass: superclass, methods: methods, line: line}
         {stmt, rest}
 
       [%Token{type: {:identifier, _}} | _rest] ->
         {method, rest} = function("class", tokens)
-        class_inner([method | methods], name, rest)
+        class_inner([method | methods], superclass, name, rest)
 
       _ ->
         raise ParserException, message: "Expect '}' after class body.", tokens: tokens
