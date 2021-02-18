@@ -303,9 +303,13 @@ defmodule ExLox.Parser do
         {statements, rest}
 
       _ ->
-        # TODO: this might fail
-        {:ok, stmt, rest} = declaration(tokens)
-        block(rest, [stmt | statements])
+        case declaration(tokens) do
+          {:ok, stmt, rest} ->
+            block(rest, [stmt | statements])
+
+          {:error, {_, message}, tokens} ->
+            raise ParserException, message: message, tokens: tokens
+        end
     end
   end
 
