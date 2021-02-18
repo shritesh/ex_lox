@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     env:
       MIX_ENV: test
     steps:
@@ -18,6 +18,6 @@ jobs:
       uses: actions/setup-elixir@v1
       with:
         elixir-version: '1.11.3' # Define the elixir version [required]
-        otp-version: '23.2' # Define the OTP version [required]
+        otp-version: '23.2.5' # Define the OTP version [required]
     - name: Run tests
       run: mix test
