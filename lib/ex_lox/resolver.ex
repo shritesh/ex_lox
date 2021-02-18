@@ -34,6 +34,11 @@ defmodule ExLox.Resolver do
       %Class{name: name, methods: methods, line: line} ->
         scopes = scopes |> declare(name, line) |> define(name)
 
+        {methods, scopes} =
+          Enum.map_reduce(methods, scopes, fn function, scopes ->
+            resolve_function(function, :method, scopes)
+          end)
+
         {%Class{name: name, methods: methods, line: line}, scopes}
 
       %Expression{expression: expression} ->
@@ -41,33 +46,13 @@ defmodule ExLox.Resolver do
 
         {%Expression{expression: expression}, scopes}
 
-      %Function{name: name, params: params, body: body, line: line} ->
+      %Function{name: name, line: line} = function ->
         scopes =
           scopes
           |> declare(name, line)
           |> define(name)
 
-        # TODO: Extract resolve function
-
-        {current_scopes, enclosing_function} = scopes
-        scopes = {current_scopes, :function}
-
-        scopes = begin_scope(scopes)
-
-        scopes =
-          Enum.reduce(params, scopes, fn name, scopes ->
-            scopes
-            |> declare(name, line)
-            |> define(name)
-          end)
-
-        {body, scopes} = resolve(body, scopes)
-        scopes = end_scope(scopes)
-
-        {current_scopes, _current_function} = scopes
-        scopes = {current_scopes, enclosing_function}
-
-        {%Function{name: name, params: params, body: body, line: line}, scopes}
+        resolve_function(function, :function, scopes)
 
       %If{condition: condition, then_branch: then_branch, else_branch: else_branch} ->
         {condition, scopes} = resolve(condition, scopes)
@@ -183,6 +168,32 @@ defmodule ExLox.Resolver do
             {%Variable{name: name, line: line, distance: distance}, scopes}
         end
     end
+  end
+
+  defp resolve_function(
+         %Function{name: name, params: params, body: body, line: line},
+         function_type,
+         scopes
+       ) do
+    {current_scopes, enclosing_function} = scopes
+    scopes = {current_scopes, function_type}
+
+    scopes = begin_scope(scopes)
+
+    scopes =
+      Enum.reduce(params, scopes, fn name, scopes ->
+        scopes
+        |> declare(name, line)
+        |> define(name)
+      end)
+
+    {body, scopes} = resolve(body, scopes)
+    scopes = end_scope(scopes)
+
+    {current_scopes, _current_function} = scopes
+    scopes = {current_scopes, enclosing_function}
+
+    {%Function{name: name, params: params, body: body, line: line}, scopes}
   end
 
   defp resolve_distance({scopes, _}, name) do

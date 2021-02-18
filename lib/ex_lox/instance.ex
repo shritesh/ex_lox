@@ -20,7 +20,10 @@ defmodule ExLox.Instance do
     if Map.has_key?(fields, name) do
       {:ok, Map.get(fields, name)}
     else
-      :error
+      case Klass.find_method(instance.klass, name) do
+        nil -> :error
+        method -> {:ok, method}
+      end
     end
   end
 

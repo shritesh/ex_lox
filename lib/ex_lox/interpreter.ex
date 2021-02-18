@@ -80,8 +80,13 @@ defmodule ExLox.Interpreter do
           true -> interpreter
         end
 
-      %Class{name: name} ->
-        klass = %Klass{name: name}
+      %Class{name: name, methods: methods} ->
+        methods =
+          Enum.into(methods, %{}, fn %Function{name: name, params: params, body: body} ->
+            {name, %Func{params: params, body: body, closure: interpreter.env}}
+          end)
+
+        klass = %Klass{name: name, methods: methods}
         Environment.define(interpreter.env, name, klass)
         interpreter
 

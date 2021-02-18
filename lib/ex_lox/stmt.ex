@@ -23,7 +23,7 @@ defmodule ExLox.Stmt do
   defmodule Class do
     @type t :: %__MODULE__{
             name: String.t(),
-            methods: list(Stmr.Function.t()),
+            methods: list(Stmt.Function.t()),
             line: non_neg_integer()
           }
 
