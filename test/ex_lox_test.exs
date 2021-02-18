@@ -2,10 +2,10 @@ defmodule ExLoxTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureIO
 
-  for filename <- File.ls!("test/cases") do
-    @filename "test/cases/" <> filename
+  describe "examples" do
+    for filename <- Path.wildcard("test/examples/*.lox") do
+      @filename filename
 
-    if String.ends_with?(@filename, ".lox") do
       test "#{filename}" do
         expectation =
           @filename
