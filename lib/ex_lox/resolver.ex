@@ -25,7 +25,7 @@ defmodule ExLox.Resolver do
   @type t :: %__MODULE__{
           scopes: list(%{optional(String.t()) => :declared | :defined}),
           current_function: :none | :function | :method | :initializer,
-          current_class: :none | :class
+          current_class: :none | :class | :subclass
         }
   defstruct [:scopes, :current_function, :current_class]
 
@@ -83,6 +83,8 @@ defmodule ExLox.Resolver do
               resolver
               |> begin_scope()
               |> define("super")
+
+            resolver = %{resolver | current_class: :subclass}
 
             resolve(superclass, resolver)
           else
@@ -231,8 +233,19 @@ defmodule ExLox.Resolver do
         {%Set{object: object, name: name, value: value, line: line}, resolver}
 
       %Super{line: line, method: method} ->
-        distance = resolve_distance(resolver, "super")
-        {%Super{line: line, method: method, distance: distance}, resolver}
+        case resolver.current_class do
+          :none ->
+            raise ResolverException, message: "Can't use 'super' outside of a class.", line: line
+
+          :class ->
+            raise ResolverException,
+              message: "Can't use 'super' in a class with no superclass.",
+              line: line
+
+          :subclass ->
+            distance = resolve_distance(resolver, "super")
+            {%Super{line: line, method: method, distance: distance}, resolver}
+        end
 
       %This{line: line} ->
         if resolver.current_class == :none do
