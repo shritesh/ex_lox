@@ -1,0 +1,5 @@
+class Ball {}
+
+var ball = Ball();
+ball.rolling = true;
+print ball.rolling;

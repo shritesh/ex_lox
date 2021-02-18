@@ -5,9 +5,11 @@ defmodule ExLox.Expr do
           Expr.Assign.t()
           | Expr.Binary.t()
           | Expr.Call.t()
+          | Expr.Get.t()
           | Expr.Grouping.t()
           | Expr.Literal.t()
           | Expr.Logical.t()
+          | Expr.Set.t()
           | Expr.Unary.t()
           | Expr.Variable.t()
 
@@ -43,6 +45,13 @@ defmodule ExLox.Expr do
     defstruct [:callee, :paren, :arguments, :line]
   end
 
+  defmodule Get do
+    @type t :: %__MODULE__{object: Expr.t(), name: String.t(), line: non_neg_integer()}
+
+    @enforce_keys [:object, :name, :line]
+    defstruct [:object, :name, :line]
+  end
+
   defmodule Grouping do
     @type t :: %__MODULE__{expression: Expr.t()}
 
@@ -63,6 +72,17 @@ defmodule ExLox.Expr do
 
     @enforce_keys [:left, :operator, :right]
     defstruct [:left, :operator, :right]
+  end
+
+  defmodule Set do
+    @type t :: %__MODULE__{
+            object: Expr.t(),
+            name: String.t(),
+            value: Expr.t(),
+            line: non_neg_integer()
+          }
+    @enforce_keys [:object, :name, :value, :line]
+    defstruct [:object, :name, :value, :line]
   end
 
   defmodule Unary do

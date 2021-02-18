@@ -1,7 +1,7 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Func, Instance, Klass, MutableMap, Stmt}
-  alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   @type t :: %Interpreter{env: Environment.t(), globals: Environment.t()}
@@ -239,6 +239,23 @@ defmodule ExLox.Interpreter do
               line: line
         end
 
+      %Get{object: object, name: name, line: line} ->
+        {object, interpreter} = evaluate(object, interpreter)
+
+        case object do
+          %Instance{} ->
+            case Instance.get(object, name) do
+              {:ok, value} ->
+                {value, interpreter}
+
+              :error ->
+                raise RuntimeException, message: "Undefined property '#{name}'.", line: line
+            end
+
+          _ ->
+            raise RuntimeException, message: "Only instances have properties.", line: line
+        end
+
       %Grouping{expression: expr} ->
         evaluate(expr, interpreter)
 
@@ -252,6 +269,19 @@ defmodule ExLox.Interpreter do
           {:or, true} -> {left, interpreter}
           {:and, false} -> {left, interpreter}
           {_, _} -> evaluate(right, interpreter)
+        end
+
+      %Set{object: object, name: name, value: value, line: line} ->
+        {object, interpreter} = evaluate(object, interpreter)
+
+        case object do
+          %Instance{} ->
+            {value, interpreter} = evaluate(value, interpreter)
+            Instance.set(object, name, value)
+            {value, interpreter}
+
+          _ ->
+            raise RuntimeException, message: "Only instances have fields", line: line
         end
 
       %Unary{operator: :not, right: right} ->
@@ -284,7 +314,7 @@ defmodule ExLox.Interpreter do
 
   @spec call(Klass.t(), list(any()), t()) :: {any(), t()}
   defp call(%Klass{} = klass, _args, interpreter) do
-    instance = %Instance{klass: klass}
+    instance = Instance.new(klass)
     {instance, interpreter}
   end
 

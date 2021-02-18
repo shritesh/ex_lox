@@ -1,6 +1,6 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
   alias ExLox.Stmt.{Block, Class, Expression, If, Function, Print, Return, Var, While}
 
   defmodule ParserException do
@@ -319,6 +319,10 @@ defmodule ExLox.Parser do
               expr = %Assign{name: name, value: value, line: line}
               {expr, rest}
 
+            %Get{object: object, name: name, line: line} ->
+              expr = %Set{object: object, name: name, value: value, line: line}
+              {expr, rest}
+
             _ ->
               raise ParserException, message: "Invalid assignment target.", tokens: rest
           end
@@ -489,6 +493,16 @@ defmodule ExLox.Parser do
       [%Token{type: :left_paren} | rest] ->
         {expr, rest} = finish_call([], expr, rest)
         call_inner(expr, rest)
+
+      [%Token{type: :dot} | rest] ->
+        case rest do
+          [%Token{type: {:identifier, name}, line: line} | rest] ->
+            expr = %Get{name: name, object: expr, line: line}
+            call_inner(expr, rest)
+
+          _ ->
+            raise ParserException, message: "Expect property name after '.'.", tokens: rest
+        end
 
       _ ->
         {expr, tokens}

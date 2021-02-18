@@ -1,6 +1,6 @@
 defmodule ExLox.Resolver do
   alias ExLox.Stmt
-  alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
+  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   defmodule ResolverException do
@@ -141,6 +141,11 @@ defmodule ExLox.Resolver do
 
         {%Call{callee: callee, arguments: arguments, line: line}, scopes}
 
+      %Get{object: object, name: name, line: line} ->
+        {object, scopes} = resolve(object, scopes)
+
+        {%Get{object: object, name: name, line: line}, scopes}
+
       %Grouping{expression: expression} ->
         {expression, scopes} = resolve(expression, scopes)
 
@@ -154,6 +159,12 @@ defmodule ExLox.Resolver do
         {right, scopes} = resolve(right, scopes)
 
         {%Logical{left: left, operator: operator, right: right}, scopes}
+
+      %Set{object: object, name: name, value: value, line: line} ->
+        {value, scopes} = resolve(value, scopes)
+        {object, scopes} = resolve(object, scopes)
+
+        {%Set{object: object, name: name, value: value, line: line}, scopes}
 
       %Unary{operator: operator, right: right} ->
         {right, scopes} = resolve(right, scopes)
