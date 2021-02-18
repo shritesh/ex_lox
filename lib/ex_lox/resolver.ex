@@ -1,5 +1,5 @@
 defmodule ExLox.Resolver do
-  alias ExLox.Stmt
+  alias ExLox.{Expr, Stmt}
 
   alias ExLox.Expr.{
     Assign,
@@ -21,10 +21,21 @@ defmodule ExLox.Resolver do
     defexception [:message, :line]
   end
 
+  @type t :: %__MODULE__{
+          scopes: list(%{optional(String.t()) => :declared | :defined}),
+          current_function: :none | :function | :method
+        }
+  defstruct [:scopes, :current_function]
+
   @spec resolve(list(Stmt.t())) :: {:ok, list(Stmt.t())} | {:errors, ExLox.error()}
   def resolve(statements) do
     try do
-      {statements, _scopes} = resolve(statements, {[], :none})
+      resolver = %__MODULE__{
+        scopes: [],
+        current_function: :none
+      }
+
+      {statements, _resolver} = resolve(statements, resolver)
       {:ok, statements}
     rescue
       e in [ResolverException] ->
@@ -33,200 +44,205 @@ defmodule ExLox.Resolver do
     end
   end
 
-  defp resolve(item, scopes) do
+  @spec resolve(Expr.t() | Stmt.t() | list(Stmt.t()), t()) ::
+          {Expr.t() | Stmt.t() | list(Stmt.t()), t()}
+  defp resolve(item, resolver) do
     case item do
       statements when is_list(statements) ->
-        Enum.map_reduce(statements, scopes, &resolve/2)
+        Enum.map_reduce(statements, resolver, &resolve/2)
 
       %Block{statements: statements} ->
-        scopes = begin_scope(scopes)
-        {statements, scopes} = resolve(statements, scopes)
-        scopes = end_scope(scopes)
+        resolver = begin_scope(resolver)
+        {statements, resolver} = resolve(statements, resolver)
+        resolver = end_scope(resolver)
 
-        {%Block{statements: statements}, scopes}
+        {%Block{statements: statements}, resolver}
 
       %Class{name: name, methods: methods, line: line} ->
-        scopes = scopes |> declare(name, line) |> define(name)
-
-        scopes = begin_scope(scopes) |> define("this")
-
-        {methods, scopes} =
-          Enum.map_reduce(methods, scopes, fn function, scopes ->
-            resolve_function(function, :method, scopes)
-          end)
-
-        scopes = end_scope(scopes)
-        {%Class{name: name, methods: methods, line: line}, scopes}
-
-      %Expression{expression: expression} ->
-        {expression, scopes} = resolve(expression, scopes)
-
-        {%Expression{expression: expression}, scopes}
-
-      %Function{name: name, line: line} = function ->
-        scopes =
-          scopes
+        resolver =
+          resolver
           |> declare(name, line)
           |> define(name)
 
-        resolve_function(function, :function, scopes)
+        resolver =
+          resolver
+          |> begin_scope()
+          |> define("this")
+
+        {methods, resolver} =
+          Enum.map_reduce(methods, resolver, fn function, resolver ->
+            resolve_function(resolver, function, :method)
+          end)
+
+        resolver = end_scope(resolver)
+
+        {%Class{name: name, methods: methods, line: line}, resolver}
+
+      %Expression{expression: expression} ->
+        {expression, resolver} = resolve(expression, resolver)
+
+        {%Expression{expression: expression}, resolver}
+
+      %Function{name: name, line: line} = function ->
+        resolver =
+          resolver
+          |> declare(name, line)
+          |> define(name)
+
+        resolve_function(resolver, function, :function)
 
       %If{condition: condition, then_branch: then_branch, else_branch: else_branch} ->
-        {condition, scopes} = resolve(condition, scopes)
-        {then_branch, scopes} = resolve(then_branch, scopes)
+        {condition, resolver} = resolve(condition, resolver)
+        {then_branch, resolver} = resolve(then_branch, resolver)
 
-        {else_branch, scopes} =
+        {else_branch, resolver} =
           if else_branch do
-            resolve(else_branch, scopes)
+            resolve(else_branch, resolver)
           else
-            {nil, scopes}
+            {nil, resolver}
           end
 
-        {%If{condition: condition, then_branch: then_branch, else_branch: else_branch}, scopes}
+        {%If{condition: condition, then_branch: then_branch, else_branch: else_branch}, resolver}
 
       %Print{expression: expression} ->
-        {expression, scopes} = resolve(expression, scopes)
+        {expression, resolver} = resolve(expression, resolver)
 
-        {%Print{expression: expression}, scopes}
+        {%Print{expression: expression}, resolver}
 
       %Return{value: value, line: line} ->
-        {_current_scopes, current_function} = scopes
-
-        if current_function == :none do
+        if resolver.current_function == :none do
           raise ResolverException, message: "Can't return from top-level code.", line: line
         end
 
-        {value, scopes} =
+        {value, resolver} =
           if value do
-            resolve(value, scopes)
+            resolve(value, resolver)
           else
-            {nil, scopes}
+            {nil, resolver}
           end
 
-        {%Return{value: value, line: line}, scopes}
+        {%Return{value: value, line: line}, resolver}
 
       %Var{name: name, initializer: initializer, line: line} ->
-        scopes = declare(scopes, name, line)
+        resolver = declare(resolver, name, line)
 
-        {initializer, scopes} =
+        {initializer, resolver} =
           if initializer do
-            resolve(initializer, scopes)
+            resolve(initializer, resolver)
           else
-            {nil, scopes}
+            {nil, resolver}
           end
 
-        scopes = define(scopes, name)
+        resolver = define(resolver, name)
 
-        {%Var{name: name, initializer: initializer, line: line}, scopes}
+        {%Var{name: name, initializer: initializer, line: line}, resolver}
 
       %While{condition: condition, body: body} ->
-        {condition, scopes} = resolve(condition, scopes)
-        {body, scopes} = resolve(body, scopes)
+        {condition, resolver} = resolve(condition, resolver)
+        {body, resolver} = resolve(body, resolver)
 
-        {%While{condition: condition, body: body}, scopes}
+        {%While{condition: condition, body: body}, resolver}
 
       %Assign{name: name, value: value, line: line} ->
-        {value, scopes} = resolve(value, scopes)
-        distance = resolve_distance(scopes, name)
+        {value, resolver} = resolve(value, resolver)
+        distance = resolve_distance(resolver, name)
 
-        {%Assign{name: name, value: value, line: line, distance: distance}, scopes}
+        {%Assign{name: name, value: value, line: line, distance: distance}, resolver}
 
       %Binary{left: left, operator: operator, right: right, line: line} ->
-        {left, scopes} = resolve(left, scopes)
-        {right, scopes} = resolve(right, scopes)
+        {left, resolver} = resolve(left, resolver)
+        {right, resolver} = resolve(right, resolver)
 
-        {%Binary{left: left, operator: operator, right: right, line: line}, scopes}
+        {%Binary{left: left, operator: operator, right: right, line: line}, resolver}
 
       %Call{callee: callee, arguments: arguments, line: line} ->
-        {callee, scopes} = resolve(callee, scopes)
-        {arguments, scopes} = Enum.map_reduce(arguments, scopes, &resolve/2)
+        {callee, resolver} = resolve(callee, resolver)
+        {arguments, resolver} = Enum.map_reduce(arguments, resolver, &resolve/2)
 
-        {%Call{callee: callee, arguments: arguments, line: line}, scopes}
+        {%Call{callee: callee, arguments: arguments, line: line}, resolver}
 
       %Get{object: object, name: name, line: line} ->
-        {object, scopes} = resolve(object, scopes)
+        {object, resolver} = resolve(object, resolver)
 
-        {%Get{object: object, name: name, line: line}, scopes}
+        {%Get{object: object, name: name, line: line}, resolver}
 
       %Grouping{expression: expression} ->
-        {expression, scopes} = resolve(expression, scopes)
+        {expression, resolver} = resolve(expression, resolver)
 
-        {%Grouping{expression: expression}, scopes}
+        {%Grouping{expression: expression}, resolver}
 
       %Literal{value: value} ->
-        {%Literal{value: value}, scopes}
+        {%Literal{value: value}, resolver}
 
       %Logical{left: left, operator: operator, right: right} ->
-        {left, scopes} = resolve(left, scopes)
-        {right, scopes} = resolve(right, scopes)
+        {left, resolver} = resolve(left, resolver)
+        {right, resolver} = resolve(right, resolver)
 
-        {%Logical{left: left, operator: operator, right: right}, scopes}
+        {%Logical{left: left, operator: operator, right: right}, resolver}
 
       %Set{object: object, name: name, value: value, line: line} ->
-        {value, scopes} = resolve(value, scopes)
-        {object, scopes} = resolve(object, scopes)
+        {value, resolver} = resolve(value, resolver)
+        {object, resolver} = resolve(object, resolver)
 
-        {%Set{object: object, name: name, value: value, line: line}, scopes}
+        {%Set{object: object, name: name, value: value, line: line}, resolver}
 
       %This{line: line} ->
-        distance = resolve_distance(scopes, "this")
-        {%This{line: line, distance: distance}, scopes}
+        distance = resolve_distance(resolver, "this")
+        {%This{line: line, distance: distance}, resolver}
 
       %Unary{operator: operator, right: right} ->
-        {right, scopes} = resolve(right, scopes)
+        {right, resolver} = resolve(right, resolver)
 
-        {%Unary{operator: operator, right: right}, scopes}
+        {%Unary{operator: operator, right: right}, resolver}
 
       %Variable{name: name, line: line} ->
-        with {[locals | _rest], _current_function} <- scopes,
+        with [locals | _rest] <- resolver.scopes,
              :declared <- locals[name] do
           raise ResolverException,
             message: "Can't read local variable '#{name}' in its own initializer.",
             line: line
         else
           _ ->
-            distance = resolve_distance(scopes, name)
-            {%Variable{name: name, line: line, distance: distance}, scopes}
+            distance = resolve_distance(resolver, name)
+            {%Variable{name: name, line: line, distance: distance}, resolver}
         end
     end
   end
 
   defp resolve_function(
+         resolver,
          %Function{name: name, params: params, body: body, line: line},
-         function_type,
-         scopes
+         function_type
        ) do
-    {current_scopes, enclosing_function} = scopes
-    scopes = {current_scopes, function_type}
+    enclosing_function = resolver.current_function
+    resolver = %{resolver | current_function: function_type}
 
-    scopes = begin_scope(scopes)
+    resolver = begin_scope(resolver)
 
-    scopes =
-      Enum.reduce(params, scopes, fn name, scopes ->
-        scopes
+    resolver =
+      Enum.reduce(params, resolver, fn name, resolver ->
+        resolver
         |> declare(name, line)
         |> define(name)
       end)
 
-    {body, scopes} = resolve(body, scopes)
-    scopes = end_scope(scopes)
+    {body, resolver} = resolve(body, resolver)
+    resolver = end_scope(resolver)
 
-    {current_scopes, _current_function} = scopes
-    scopes = {current_scopes, enclosing_function}
-
-    {%Function{name: name, params: params, body: body, line: line}, scopes}
+    resolver = %{resolver | current_function: enclosing_function}
+    {%Function{name: name, params: params, body: body, line: line}, resolver}
   end
 
-  defp resolve_distance({scopes, _}, name) do
-    Enum.find_index(scopes, fn locals -> Map.has_key?(locals, name) end)
+  defp resolve_distance(resolver, name) do
+    Enum.find_index(resolver.scopes, fn locals -> Map.has_key?(locals, name) end)
   end
 
-  defp declare(scopes, name, line) do
-    case scopes do
-      {[], current_function} ->
-        {[], current_function}
+  defp declare(resolver, name, line) do
+    case resolver.scopes do
+      [] ->
+        resolver
 
-      {[locals | rest], current_function} ->
+      [locals | rest] ->
         if Map.has_key?(locals, name) do
           raise ResolverException,
             message: "Already variable with this name in this scope.",
@@ -234,26 +250,30 @@ defmodule ExLox.Resolver do
         end
 
         locals = Map.put(locals, name, :declared)
-        {[locals | rest], current_function}
+        %{resolver | scopes: [locals | rest]}
     end
   end
 
-  defp define(scopes, name) do
-    case scopes do
-      {[], current_function} ->
-        {[], current_function}
+  @spec define(t(), String.t()) :: t()
+  defp define(resolver, name) do
+    case resolver.scopes do
+      [] ->
+        resolver
 
-      {[locals | rest], current_function} ->
+      [locals | rest] ->
         locals = Map.put(locals, name, :defined)
-        {[locals | rest], current_function}
+        %{resolver | scopes: [locals | rest]}
     end
   end
 
-  defp begin_scope({scopes, current_function}) do
-    {[%{} | scopes], current_function}
+  @spec begin_scope(t()) :: t()
+  defp begin_scope(resolver) do
+    %{resolver | scopes: [%{} | resolver.scopes]}
   end
 
-  defp end_scope({[_local | scopes], current_function}) do
-    {scopes, current_function}
+  @spec end_scope(t()) :: t()
+  defp end_scope(resolver) do
+    [_local | scopes] = resolver.scopes
+    %{resolver | scopes: scopes}
   end
 end
