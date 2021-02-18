@@ -1,6 +1,6 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
-  alias ExLox.{Environment, Expr, Func, Instance, Klass, Stmt}
+  alias ExLox.{Environment, Expr, Func, Instance, Klass, MutableMap, Stmt}
   alias ExLox.Expr.{Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable}
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
@@ -10,7 +10,7 @@ defmodule ExLox.Interpreter do
 
   @spec new :: t()
   def new do
-    Environment.init()
+    MutableMap.init()
 
     globals = Environment.new()
     Environment.define(globals, "clock", fn -> System.os_time(:millisecond) / 1000.0 end)

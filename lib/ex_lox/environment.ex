@@ -1,49 +1,43 @@
 defmodule ExLox.Environment do
   alias __MODULE__
+  alias ExLox.MutableMap
 
-  @table_name :environments
+  @type t :: %Environment{map: MutableMap.t(), enclosing: nil | t()}
 
-  @type t :: %Environment{ref: reference(), enclosing: nil | t()}
-
-  @enforce_keys [:ref]
-  defstruct [:ref, :enclosing]
-
-  @spec init :: nil
-  def init do
-    :ets.new(@table_name, [:named_table, :private, :set])
-  end
+  @enforce_keys [:map]
+  defstruct [:map, :enclosing]
 
   @spec new :: t()
   def new do
     %Environment{
-      ref: new_table()
+      map: MutableMap.new()
     }
   end
 
   @spec from(t()) :: t()
   def from(env) do
     %Environment{
-      ref: new_table(),
+      map: MutableMap.new(),
       enclosing: env
     }
   end
 
   @spec define(t(), String.t(), any()) :: nil
   def define(env, name, value) do
-    table = get_table(env.ref)
+    map = MutableMap.get(env.map)
 
-    table = Map.put(table, name, value)
-    put_table(env.ref, table)
+    map = Map.put(map, name, value)
+    MutableMap.put(env.map, map)
 
     nil
   end
 
   @spec get(t(), String.t()) :: {:ok, any()} | :error
   def get(env, name) do
-    table = get_table(env.ref)
+    map = MutableMap.get(env.map)
 
-    if Map.has_key?(table, name) do
-      {:ok, Map.get(table, name)}
+    if Map.has_key?(map, name) do
+      {:ok, Map.get(map, name)}
     else
       if env.enclosing do
         get(env.enclosing, name)
@@ -64,11 +58,11 @@ defmodule ExLox.Environment do
 
   @spec assign(t(), String.t(), any()) :: :ok | :error
   def assign(env, name, value) do
-    table = get_table(env.ref)
+    map = MutableMap.get(env.map)
 
-    if Map.has_key?(table, name) do
-      table = Map.put(table, name, value)
-      put_table(env.ref, table)
+    if Map.has_key?(map, name) do
+      map = Map.put(map, name, value)
+      MutableMap.put(env.map, map)
       :ok
     else
       if env.enclosing do
@@ -86,20 +80,5 @@ defmodule ExLox.Environment do
     else
       assign_at(env.enclosing, distance - 1, name, value)
     end
-  end
-
-  defp new_table() do
-    ref = make_ref()
-    :ets.insert(@table_name, {ref, %{}})
-    ref
-  end
-
-  defp get_table(ref) do
-    [{_, table}] = :ets.lookup(@table_name, ref)
-    table
-  end
-
-  defp put_table(ref, table) do
-    :ets.insert(@table_name, {ref, table})
   end
 end
