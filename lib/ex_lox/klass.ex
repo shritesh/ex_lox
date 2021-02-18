@@ -9,4 +9,13 @@ defmodule ExLox.Klass do
   def find_method(klass, name) do
     Map.get(klass.methods, name)
   end
+
+  @spec arity(t()) :: integer()
+  def arity(klass) do
+    if init = find_method(klass, "init") do
+      Func.arity(init)
+    else
+      0
+    end
+  end
 end

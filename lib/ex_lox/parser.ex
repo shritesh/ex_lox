@@ -303,6 +303,7 @@ defmodule ExLox.Parser do
         {statements, rest}
 
       _ ->
+        # TODO: this might fail
         {:ok, stmt, rest} = declaration(tokens)
         block(rest, [stmt | statements])
     end

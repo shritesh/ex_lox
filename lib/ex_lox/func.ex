@@ -13,4 +13,9 @@ defmodule ExLox.Func do
     Environment.define(environment, "this", instance)
     %Func{params: func.params, body: func.body, closure: environment}
   end
+
+  @spec arity(t()) :: integer()
+  def arity(func) do
+    length(func.params)
+  end
 end

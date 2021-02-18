@@ -250,6 +250,13 @@ defmodule ExLox.Interpreter do
               line: line
 
           %Klass{} ->
+            if Klass.arity(callee) != length(arguments) do
+              raise RuntimeException,
+                message:
+                  "Expected #{Klass.arity(callee)} arguments but got #{length(arguments)}.",
+                line: line
+            end
+
             call(callee, arguments, interpreter)
 
           _ ->
@@ -340,8 +347,14 @@ defmodule ExLox.Interpreter do
   end
 
   @spec call(Klass.t(), list(any()), t()) :: {any(), t()}
-  defp call(%Klass{} = klass, _args, interpreter) do
+  defp call(%Klass{} = klass, args, interpreter) do
     instance = Instance.new(klass)
+
+    if initializer = Klass.find_method(klass, "init") do
+      Func.bind(initializer, instance)
+      |> call(args, interpreter)
+    end
+
     {instance, interpreter}
   end
 

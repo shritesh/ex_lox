@@ -1,0 +1,12 @@
+class Sandwich {
+    init(kind) {
+        this.kind = kind;
+    }
+
+    name() {
+        return this.kind + " Sandwich";
+    }
+}
+
+var sandwich = Sandwich("Cheese");
+print sandwich.name();
