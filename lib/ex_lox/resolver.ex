@@ -1,6 +1,20 @@
 defmodule ExLox.Resolver do
   alias ExLox.Stmt
-  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
+
+  alias ExLox.Expr.{
+    Assign,
+    Binary,
+    Call,
+    Get,
+    Grouping,
+    Literal,
+    Logical,
+    Set,
+    This,
+    Unary,
+    Variable
+  }
+
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   defmodule ResolverException do
@@ -34,11 +48,14 @@ defmodule ExLox.Resolver do
       %Class{name: name, methods: methods, line: line} ->
         scopes = scopes |> declare(name, line) |> define(name)
 
+        scopes = begin_scope(scopes) |> define("this")
+
         {methods, scopes} =
           Enum.map_reduce(methods, scopes, fn function, scopes ->
             resolve_function(function, :method, scopes)
           end)
 
+        scopes = end_scope(scopes)
         {%Class{name: name, methods: methods, line: line}, scopes}
 
       %Expression{expression: expression} ->
@@ -150,6 +167,10 @@ defmodule ExLox.Resolver do
         {object, scopes} = resolve(object, scopes)
 
         {%Set{object: object, name: name, value: value, line: line}, scopes}
+
+      %This{line: line} ->
+        distance = resolve_distance(scopes, "this")
+        {%This{line: line, distance: distance}, scopes}
 
       %Unary{operator: operator, right: right} ->
         {right, scopes} = resolve(right, scopes)

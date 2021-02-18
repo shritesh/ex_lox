@@ -1,6 +1,20 @@
 defmodule ExLox.Parser do
   alias ExLox.{Stmt, Token}
-  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
+
+  alias ExLox.Expr.{
+    Assign,
+    Binary,
+    Call,
+    Get,
+    Grouping,
+    Literal,
+    Logical,
+    Set,
+    This,
+    Unary,
+    Variable
+  }
+
   alias ExLox.Stmt.{Block, Class, Expression, If, Function, Print, Return, Var, While}
 
   defmodule ParserException do
@@ -547,6 +561,10 @@ defmodule ExLox.Parser do
 
       [%Token{type: {:string, string}} | rest] ->
         expr = %Literal{value: string}
+        {expr, rest}
+
+      [%Token{type: :this, line: line} | rest] ->
+        expr = %This{line: line}
         {expr, rest}
 
       [%Token{type: {:identifier, identifier}, line: line} | rest] ->

@@ -1,5 +1,5 @@
 defmodule ExLox.Instance do
-  alias ExLox.{Klass, MutableMap}
+  alias ExLox.{Func, Klass, MutableMap}
 
   @type t :: %__MODULE__{klass: Klass.t(), map: MutableMap.t()}
 
@@ -21,8 +21,12 @@ defmodule ExLox.Instance do
       {:ok, Map.get(fields, name)}
     else
       case Klass.find_method(instance.klass, name) do
-        nil -> :error
-        method -> {:ok, method}
+        nil ->
+          :error
+
+        method ->
+          method = Func.bind(method, instance)
+          {:ok, method}
       end
     end
   end

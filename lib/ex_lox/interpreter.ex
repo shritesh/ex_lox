@@ -1,7 +1,21 @@
 defmodule ExLox.Interpreter do
   alias __MODULE__
   alias ExLox.{Environment, Expr, Func, Instance, Klass, MutableMap, Stmt}
-  alias ExLox.Expr.{Assign, Binary, Call, Get, Grouping, Literal, Logical, Set, Unary, Variable}
+
+  alias ExLox.Expr.{
+    Assign,
+    Binary,
+    Call,
+    Get,
+    Grouping,
+    Literal,
+    Logical,
+    Set,
+    This,
+    Unary,
+    Variable
+  }
+
   alias ExLox.Stmt.{Block, Class, Expression, Function, If, Print, Return, Var, While}
 
   @type t :: %Interpreter{env: Environment.t(), globals: Environment.t()}
@@ -289,6 +303,9 @@ defmodule ExLox.Interpreter do
             raise RuntimeException, message: "Only instances have fields", line: line
         end
 
+      %This{line: line, distance: distance} ->
+        lookup_variable(interpreter, "this", line, distance)
+
       %Unary{operator: :not, right: right} ->
         {expr, interpreter} = evaluate(right, interpreter)
         {!truthy?(expr), interpreter}
@@ -298,22 +315,27 @@ defmodule ExLox.Interpreter do
         {-expr, interpreter}
 
       %Variable{name: name, line: line, distance: distance} ->
-        result =
-          if distance do
-            Environment.get_at(interpreter.env, distance, name)
-          else
-            Environment.get(interpreter.globals, name)
-          end
+        lookup_variable(interpreter, name, line, distance)
+    end
+  end
 
-        case result do
-          {:ok, val} ->
-            {val, interpreter}
+  @spec lookup_variable(t(), String.t(), non_neg_integer(), nil | integer()) :: {any(), t()}
+  defp lookup_variable(interpreter, name, line, distance) do
+    result =
+      if distance do
+        Environment.get_at(interpreter.env, distance, name)
+      else
+        Environment.get(interpreter.globals, name)
+      end
 
-          :error ->
-            raise RuntimeException,
-              message: "Undefined variable '#{name}'.",
-              line: line
-        end
+    case result do
+      {:ok, val} ->
+        {val, interpreter}
+
+      :error ->
+        raise RuntimeException,
+          message: "Undefined variable '#{name}'.",
+          line: line
     end
   end
 

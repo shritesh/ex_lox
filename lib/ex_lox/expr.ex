@@ -10,6 +10,7 @@ defmodule ExLox.Expr do
           | Expr.Literal.t()
           | Expr.Logical.t()
           | Expr.Set.t()
+          | Expr.This.t()
           | Expr.Unary.t()
           | Expr.Variable.t()
 
@@ -83,6 +84,13 @@ defmodule ExLox.Expr do
           }
     @enforce_keys [:object, :name, :value, :line]
     defstruct [:object, :name, :value, :line]
+  end
+
+  defmodule This do
+    @type t :: %__MODULE__{line: non_neg_integer(), distance: nil | integer()}
+
+    @enforce_keys [:line]
+    defstruct [:line, :distance]
   end
 
   defmodule Unary do
