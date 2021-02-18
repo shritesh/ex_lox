@@ -11,6 +11,7 @@ defmodule ExLox.Interpreter do
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable
@@ -99,6 +100,9 @@ defmodule ExLox.Interpreter do
           if superclass do
             case evaluate(superclass, interpreter) do
               {%Klass{} = superclass, interpreter} ->
+                env = Environment.from(interpreter.env)
+                Environment.define(env, "super", superclass)
+                interpreter = %{interpreter | env: env}
                 {superclass, interpreter}
 
               _ ->
@@ -120,6 +124,13 @@ defmodule ExLox.Interpreter do
                initializer?: name == "init"
              }}
           end)
+
+        interpreter =
+          if superclass do
+            %{interpreter | env: interpreter.env.enclosing}
+          else
+            interpreter
+          end
 
         klass = %Klass{name: name, methods: methods, superklass: superclass}
         Environment.define(interpreter.env, name, klass)
@@ -329,6 +340,15 @@ defmodule ExLox.Interpreter do
 
           _ ->
             raise RuntimeException, message: "Only instances have fields", line: line
+        end
+
+      %Super{line: line, method: method, distance: distance} ->
+        {:ok, superclass} = Environment.get_at(interpreter.env, distance, "super")
+        {:ok, object} = Environment.get_at(interpreter.env, distance - 1, "this")
+
+        case Klass.find_method(superclass, method) do
+          nil -> raise RuntimeException, message: "Undefined property '#{method}'.", line: line
+          method -> {Func.bind(method, object), interpreter}
         end
 
       %This{line: line, distance: distance} ->

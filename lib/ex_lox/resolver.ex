@@ -10,6 +10,7 @@ defmodule ExLox.Resolver do
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable
@@ -78,6 +79,11 @@ defmodule ExLox.Resolver do
                 line: superclass.line
             end
 
+            resolver =
+              resolver
+              |> begin_scope()
+              |> define("super")
+
             resolve(superclass, resolver)
           else
             {nil, resolver}
@@ -98,6 +104,13 @@ defmodule ExLox.Resolver do
           end)
 
         resolver = end_scope(resolver)
+
+        resolver =
+          if superclass do
+            end_scope(resolver)
+          else
+            resolver
+          end
 
         resolver = %{resolver | current_class: enclosing_class}
 
@@ -216,6 +229,10 @@ defmodule ExLox.Resolver do
         {object, resolver} = resolve(object, resolver)
 
         {%Set{object: object, name: name, value: value, line: line}, resolver}
+
+      %Super{line: line, method: method} ->
+        distance = resolve_distance(resolver, "super")
+        {%Super{line: line, method: method, distance: distance}, resolver}
 
       %This{line: line} ->
         if resolver.current_class == :none do

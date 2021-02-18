@@ -10,6 +10,7 @@ defmodule ExLox.Parser do
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable
@@ -583,6 +584,18 @@ defmodule ExLox.Parser do
       [%Token{type: :this, line: line} | rest] ->
         expr = %This{line: line}
         {expr, rest}
+
+      [%Token{type: :super, line: line} | rest] ->
+        rest = consume(rest, :dot, "Expect '.' after 'super'.")
+
+        case rest do
+          [%Token{type: {:identifier, method}} | rest] ->
+            expr = %Super{method: method, line: line}
+            {expr, rest}
+
+          _ ->
+            raise ParserException, message: "Expect superclass method name.", tokens: rest
+        end
 
       [%Token{type: {:identifier, identifier}, line: line} | rest] ->
         expr = %Variable{name: identifier, line: line}

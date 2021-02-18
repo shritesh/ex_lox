@@ -10,6 +10,7 @@ defmodule ExLox.Expr do
           | Expr.Literal.t()
           | Expr.Logical.t()
           | Expr.Set.t()
+          | Expr.Super.t()
           | Expr.This.t()
           | Expr.Unary.t()
           | Expr.Variable.t()
@@ -84,6 +85,13 @@ defmodule ExLox.Expr do
           }
     @enforce_keys [:object, :name, :value, :line]
     defstruct [:object, :name, :value, :line]
+  end
+
+  defmodule Super do
+    @type t :: %__MODULE__{method: String.t(), line: non_neg_integer(), distance: nil | integer()}
+
+    @enforce_keys [:method, :line]
+    defstruct [:method, :line, :distance]
   end
 
   defmodule This do
