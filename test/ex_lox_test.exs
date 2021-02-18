@@ -2,8 +2,8 @@ defmodule ExLoxTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureIO
 
-  for filename <- File.ls!("test/fixtures") do
-    @filename "test/fixtures/" <> filename
+  for filename <- File.ls!("test/cases") do
+    @filename "test/cases/" <> filename
 
     if String.ends_with?(@filename, ".lox") do
       test "#{filename}" do
