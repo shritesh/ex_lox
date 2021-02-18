@@ -23,16 +23,18 @@ defmodule ExLox.Resolver do
 
   @type t :: %__MODULE__{
           scopes: list(%{optional(String.t()) => :declared | :defined}),
-          current_function: :none | :function | :method
+          current_function: :none | :function | :method,
+          current_class: :none | :class
         }
-  defstruct [:scopes, :current_function]
+  defstruct [:scopes, :current_function, :current_class]
 
   @spec resolve(list(Stmt.t())) :: {:ok, list(Stmt.t())} | {:errors, ExLox.error()}
   def resolve(statements) do
     try do
       resolver = %__MODULE__{
         scopes: [],
-        current_function: :none
+        current_function: :none,
+        current_class: :none
       }
 
       {statements, _resolver} = resolve(statements, resolver)
@@ -59,6 +61,10 @@ defmodule ExLox.Resolver do
         {%Block{statements: statements}, resolver}
 
       %Class{name: name, methods: methods, line: line} ->
+        enclosing_class = resolver.current_class
+
+        resolver = %{resolver | current_class: :class}
+
         resolver =
           resolver
           |> declare(name, line)
@@ -75,6 +81,8 @@ defmodule ExLox.Resolver do
           end)
 
         resolver = end_scope(resolver)
+
+        resolver = %{resolver | current_class: enclosing_class}
 
         {%Class{name: name, methods: methods, line: line}, resolver}
 
@@ -187,6 +195,10 @@ defmodule ExLox.Resolver do
         {%Set{object: object, name: name, value: value, line: line}, resolver}
 
       %This{line: line} ->
+        if resolver.current_class == :none do
+          raise ResolverException, message: "Can't use 'this' outside of a class.", line: line
+        end
+
         distance = resolve_distance(resolver, "this")
         {%This{line: line, distance: distance}, resolver}
 
